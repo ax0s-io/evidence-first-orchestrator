@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# Local run evidence must never be committed: job directories contain task
+# briefs, model streams, and worker artifacts.
+.orchestration-runs/
+orchestration-runs/
+
+# Working notes handed to a build session. Local scratch, never publishable.
+FOLLOWUP_BRIEF.md

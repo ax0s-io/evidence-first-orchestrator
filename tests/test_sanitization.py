@@ -21,10 +21,10 @@ REPO = Path(__file__).resolve().parents[1]
 PERSON_NAMES = ("Aa" + "ron", "Dy" + "son", "Chr" + "is", "Blasch" + "ke")
 ORG_SLUGS = ("ax" + "0s",)
 
-# Credit and consent are the subject matter of these three files, so the
-# authors' names legitimately appear in them. Nowhere else.
+# Credit, consent, and the copyright grant are the subject matter of these
+# files, so the authors' names legitimately appear in them. Nowhere else.
 NAME_ALLOWED_FILES = frozenset(
-    {"ATTRIBUTION.md", "PUBLICATION_CHECKLIST.md", "README.md"}
+    {"ATTRIBUTION.md", "PUBLICATION_CHECKLIST.md", "README.md", "LICENSE"}
 )
 
 NAME_PATTERNS = tuple(

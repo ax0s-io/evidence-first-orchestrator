@@ -4,21 +4,21 @@
 pushed to a public host, announced, submitted to a registry or skill index, or
 shared outside the authors until every item below is resolved and recorded.
 
-There is deliberately **no `LICENSE` file**. Absent a license, no use,
-copying, modification, or redistribution rights are granted to anyone. That is
-the intended state until item 1 is closed.
+An MIT `LICENSE` file has been added as a publication draft. It names Aaron
+Dyson and Chris Blaschke as copyright holders. **That grant must not be
+published until both named authors approve it in writing.**
 
 ---
 
-## 1. License — BLOCKING
+## 1. License — BLOCKING ON AUTHOR CONSENT
 
-- [ ] Choose the license (candidates: Apache-2.0 for the patent grant and
-      NOTICE conventions, or MIT for minimalism).
-- [ ] Confirm every author agrees to license their contributions under it.
-- [ ] Add `LICENSE`, and `NOTICE` if Apache-2.0 is chosen.
-- [ ] Add the copyright holder line (individual authors vs. an ax0s entity —
-      decide deliberately; it affects who can enforce and relicense).
-- [ ] Add per-file headers only if the chosen license expects them.
+- [x] Choose the license: **MIT** (selected by Aaron Dyson on 2026-08-06).
+- [ ] Confirm every author agrees to license their contributions under MIT —
+      Chris Blaschke’s written approval remains required.
+- [x] Add the standard MIT `LICENSE` text; no `NOTICE` is required.
+- [ ] Confirm the draft copyright holder line, currently “Aaron Dyson and
+      Chris Blaschke,” with both authors.
+- [x] No per-file license headers are required for this release.
 
 ## 2. Third-party code provenance — BLOCKING
 

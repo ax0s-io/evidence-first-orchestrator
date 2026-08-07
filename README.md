@@ -1,9 +1,8 @@
 # prime-fable-orchestrator
 
-> **Status: draft. Not released.** This repository is a pre-publication draft.
-> It has no license yet, so no public use rights are granted. See
-> [PUBLICATION_CHECKLIST.md](PUBLICATION_CHECKLIST.md) for what must happen
-> before any public release.
+> **Status: draft. Not released.** The MIT license has been selected and added,
+> but publication remains blocked on both authors’ approval and the remaining
+> items in [PUBLICATION_CHECKLIST.md](PUBLICATION_CHECKLIST.md).
 
 A bounded, evidence-first orchestration skill for [Prime Agent](https://github.com/PrimeIntellect-ai).
 It lets a top-level Claude Code session decompose a hard task, dispatch a small
@@ -210,7 +209,9 @@ sponsored by, or endorsed by Prime Intellect, Anthropic, OpenAI, or xAI. All
 product names and trademarks belong to their respective owners and are used
 only to describe interoperability.
 
-## Contributing
+## License and contributing
 
-Not open for contribution yet — there is no license, so contributions cannot be
-accepted or relicensed. See [PUBLICATION_CHECKLIST.md](PUBLICATION_CHECKLIST.md).
+The code is prepared under the [MIT License](LICENSE). The repository remains a
+private publication draft until both named authors approve the release.
+Contributions are not open yet; the contribution and security-contact policies
+remain unresolved in [PUBLICATION_CHECKLIST.md](PUBLICATION_CHECKLIST.md).

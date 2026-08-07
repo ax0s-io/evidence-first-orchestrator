@@ -48,6 +48,7 @@ does not grant, extend, resell, or circumvent any provider entitlement.
 
 ## License
 
-None yet. See [PUBLICATION_CHECKLIST.md](PUBLICATION_CHECKLIST.md) item 1. Until
-a license is added, no use, copying, modification, or redistribution rights are
-granted.
+The project is prepared under the [MIT License](LICENSE), with a draft copyright
+line naming Aaron Dyson and Chris Blaschke. Public release remains blocked until
+both authors approve that license grant and copyright attribution; see
+[PUBLICATION_CHECKLIST.md](PUBLICATION_CHECKLIST.md) item 1.

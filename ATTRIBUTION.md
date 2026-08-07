@@ -1,25 +1,18 @@
 # Attribution
 
-> **Draft — pending author approval.** Every credit line below is a proposal.
-> The exact role language must be confirmed in writing by each named person
-> before this repository is published. See
-> [PUBLICATION_CHECKLIST.md](PUBLICATION_CHECKLIST.md) item 3.
+> **Approved 2026-08-06.** Both named authors approved this attribution and the
+> MIT license. Chris Blaschke approved in person while with Aaron Dyson; Aaron
+> recorded that approval in the publication checklist.
 
 ## Authors
 
 Developed by **Aaron Dyson** and **Chris Blaschke** at **ax0s**.
 
-Proposed role language — **NOT YET APPROVED, placeholder wording**:
-
-- **Aaron Dyson** — *[pending approval]* orchestration design, launcher and
-  validation implementation, extraction and open-source preparation.
-- **Chris Blaschke** — *[pending approval]* provider-adapter and routing
-  design; author of the upstream `codex-leg` / `grok-leg` wrapper lineage that
-  this project treats as an external prerequisite.
-
-Both descriptions are drafts written by a third party and may misstate who did
-what. Correct them before release. If either author prefers to be uncredited,
-or credited only through the organization, that preference governs.
+- **Aaron Dyson** — orchestration design, launcher and validation
+  implementation, extraction, and open-source preparation.
+- **Chris Blaschke** — provider-adapter and routing design; author of the
+  upstream `codex-leg` / `grok-leg` wrapper lineage that this project treats as
+  an external prerequisite.
 
 ## Relationship to upstream work
 
@@ -48,7 +41,6 @@ does not grant, extend, resell, or circumvent any provider entitlement.
 
 ## License
 
-The project is prepared under the [MIT License](LICENSE), with a draft copyright
-line naming Aaron Dyson and Chris Blaschke. Public release remains blocked until
-both authors approve that license grant and copyright attribution; see
-[PUBLICATION_CHECKLIST.md](PUBLICATION_CHECKLIST.md) item 1.
+The project is licensed under the [MIT License](LICENSE), with Aaron Dyson and
+Chris Blaschke as copyright holders. Both authors approved the license grant
+and attribution on 2026-08-06.

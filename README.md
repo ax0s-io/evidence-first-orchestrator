@@ -1,8 +1,8 @@
 # prime-fable-orchestrator
 
-> **Status: draft. Not released.** The MIT license has been selected and added,
-> but publication remains blocked on both authors’ approval and the remaining
-> items in [PUBLICATION_CHECKLIST.md](PUBLICATION_CHECKLIST.md).
+> **Status: draft. Not released.** Both authors approved the MIT license and
+> attribution on 2026-08-06. Publication remains blocked on the remaining items
+> in [PUBLICATION_CHECKLIST.md](PUBLICATION_CHECKLIST.md).
 
 A bounded, evidence-first orchestration skill for [Prime Agent](https://github.com/PrimeIntellect-ai).
 It lets a top-level Claude Code session decompose a hard task, dispatch a small
@@ -200,9 +200,9 @@ authoritative gate — run it before proposing any change.
 
 ## Attribution and independence
 
-See [ATTRIBUTION.md](ATTRIBUTION.md). Summary: developed by **Aaron Dyson** and
-**Chris Blaschke** at **ax0s**; the precise role/credit language is a draft
-pending both authors' sign-off.
+See [ATTRIBUTION.md](ATTRIBUTION.md). Developed by **Aaron Dyson** and
+**Chris Blaschke** at **ax0s**; both authors approved the listed attribution on
+2026-08-06.
 
 This is an **independent community integration**. It is not affiliated with,
 sponsored by, or endorsed by Prime Intellect, Anthropic, OpenAI, or xAI. All
@@ -211,7 +211,8 @@ only to describe interoperability.
 
 ## License and contributing
 
-The code is prepared under the [MIT License](LICENSE). The repository remains a
-private publication draft until both named authors approve the release.
-Contributions are not open yet; the contribution and security-contact policies
-remain unresolved in [PUBLICATION_CHECKLIST.md](PUBLICATION_CHECKLIST.md).
+The code is licensed under the [MIT License](LICENSE), approved by both named
+authors on 2026-08-06. The repository remains a private publication draft while
+provider-terms, naming, security-contact, and release checks are completed.
+Contributions are not open yet; see
+[PUBLICATION_CHECKLIST.md](PUBLICATION_CHECKLIST.md).

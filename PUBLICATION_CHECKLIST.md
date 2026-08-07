@@ -4,20 +4,21 @@
 pushed to a public host, announced, submitted to a registry or skill index, or
 shared outside the authors until every item below is resolved and recorded.
 
-An MIT `LICENSE` file has been added as a publication draft. It names Aaron
-Dyson and Chris Blaschke as copyright holders. **That grant must not be
-published until both named authors approve it in writing.**
+An MIT `LICENSE` file names Aaron Dyson and Chris Blaschke as copyright
+holders. Both authors approved the license and attribution on 2026-08-06;
+Chris approved in person while with Aaron, and Aaron recorded that approval
+here.
 
 ---
 
-## 1. License — BLOCKING ON AUTHOR CONSENT
+## 1. License — COMPLETE
 
 - [x] Choose the license: **MIT** (selected by Aaron Dyson on 2026-08-06).
-- [ ] Confirm every author agrees to license their contributions under MIT —
-      Chris Blaschke’s written approval remains required.
+- [x] Both authors approved licensing their contributions under MIT on
+      2026-08-06; Chris Blaschke approved in person while with Aaron Dyson.
 - [x] Add the standard MIT `LICENSE` text; no `NOTICE` is required.
-- [ ] Confirm the draft copyright holder line, currently “Aaron Dyson and
-      Chris Blaschke,” with both authors.
+- [x] Both authors confirmed the copyright holder line: “Aaron Dyson and Chris
+      Blaschke.”
 - [x] No per-file license headers are required for this release.
 
 ## 2. Third-party code provenance — BLOCKING
@@ -37,17 +38,15 @@ included here.**
 - [ ] If any upstream code is ever to be included, obtain explicit written
       permission and a compatible license from its owner first.
 
-## 3. Author consent and attribution — BLOCKING
+## 3. Author consent and attribution — CONTACT STILL BLOCKING
 
-- [ ] **Chris Blaschke's explicit written consent** to publish this extraction,
-      to be named in `ATTRIBUTION.md`, and to the exact role language used.
-- [ ] **Aaron Dyson's explicit written consent** to the same.
-- [ ] Confirm the ax0s organizational attribution is accurate and that whoever
-      controls the ax0s name approves its use here.
-- [ ] Replace the "pending approval" markers in `ATTRIBUTION.md` with the
-      agreed final language.
-- [ ] Decide whether personal names appear at all, or only an org name and
-      contact address.
+- [x] **Chris Blaschke approved** publication of this extraction, being named
+      in `ATTRIBUTION.md`, and the exact role language on 2026-08-06. Approval
+      was given in person while with Aaron Dyson and recorded by Aaron here.
+- [x] **Aaron Dyson approved** the same on 2026-08-06.
+- [x] Both founders approved use of the ax0s organizational attribution.
+- [x] Final agreed role language is recorded in `ATTRIBUTION.md`.
+- [x] Both authors chose to publish their personal names with the ax0s name.
 - [ ] Decide the maintainer contact / security contact address, and confirm
       whoever owns it agrees to receive reports.
 
@@ -117,15 +116,16 @@ governed by each provider's terms.
 
 ## Sign-off
 
-Publication requires all BLOCKING sections closed and both authors' recorded
-approval. Until then this repository stays private and unlicensed.
+Publication requires all remaining BLOCKING sections to close. The repository
+is MIT-licensed with both authors’ recorded approval, but stays private until
+provider-terms, naming, provenance, security-contact, and release checks pass.
 
 | Item | Owner | Date | Evidence |
 | --- | --- | --- | --- |
-| License chosen | | | |
+| License chosen | Aaron Dyson + Chris Blaschke | 2026-08-06 | MIT `LICENSE`; both approved |
 | Provenance confirmed | | | |
-| Aaron Dyson consent | | | |
-| Chris Blaschke consent | | | |
+| Aaron Dyson consent | Aaron Dyson | 2026-08-06 | Approved in this session |
+| Chris Blaschke consent | Chris Blaschke | 2026-08-06 | Approved in person while with Aaron; recorded by Aaron |
 | Provider terms reviewed | | | |
 | Trademark review | | | |
 | Secret/history scan | | | |

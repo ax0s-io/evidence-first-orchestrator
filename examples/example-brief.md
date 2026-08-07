@@ -23,7 +23,7 @@ A brief is a contract, not a wish. State the goal, the exact files in scope,
 what must not change, the acceptance criteria, and the authorization boundary.
 
 ```bash
-prime-fable-orchestrate --cwd /tmp/wt-retry \
+efo-orchestrate --cwd /tmp/wt-retry \
   --max-workers 4 --max-writers 1 --max-nodes 10 <<'BRIEF'
 GOAL
 Add retry-with-backoff to the HTTP client in src/myservice/http/client.py.
@@ -81,7 +81,7 @@ the authoritative gate itself: per-worker test results are advisory, the
 central run is the evidence.
 
 Every worker writes its stream and final artifact under
-`$PRIME_ORCHESTRATION_JOB_DIR`, which is what makes the result checkable.
+`$EFO_ORCHESTRATION_JOB_DIR`, which is what makes the result checkable.
 
 ## 4. Read the result
 
@@ -146,7 +146,7 @@ whose job was to disagree.
 **Read-only investigation.** Mechanically forbid edits; widen readers:
 
 ```bash
-prime-fable-orchestrate --cwd /tmp/wt-retry \
+efo-orchestrate --cwd /tmp/wt-retry \
   --max-workers 8 --max-writers 0 --max-nodes 16 <<'BRIEF'
 Explain how request timeouts propagate from HttpClient to the socket layer.
 Cite file:line for every claim. Produce a report only — change nothing.
@@ -156,7 +156,7 @@ BRIEF
 **Bounded follow-up.** Reuse the session instead of paying fresh-context cost:
 
 ```bash
-prime-fable-orchestrate --cwd /tmp/wt-retry --resume "$(cat "$JOB/session-id")" <<'BRIEF'
+efo-orchestrate --cwd /tmp/wt-retry --resume "$(cat "$JOB/session-id")" <<'BRIEF'
 The Retry-After parser rejects the HTTP-date form. Fix it and extend the test.
 Nothing else changes.
 BRIEF

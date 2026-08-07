@@ -5,9 +5,9 @@
 # reimplementing it, so an adapter can never resolve a different binary than
 # the one the launcher and preflight checked.
 
-prime_resolve_bin_dir="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+efo_resolve_bin_dir="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-prime_resolve_bin() {
+efo_resolve_bin() {
   local name="$1"
   local env_var="$2"
   local program="$3"
@@ -20,12 +20,12 @@ prime_resolve_bin() {
     override_set=1
   fi
 
-  if resolved="$(python3 - "$name" "$override_set" "$override" "$prime_resolve_bin_dir" 2>/dev/null <<'PY'
+  if resolved="$(python3 - "$name" "$override_set" "$override" "$efo_resolve_bin_dir" 2>/dev/null <<'PY'
 import sys
 
 name, override_set, override, script_dir = sys.argv[1:]
 sys.path.insert(0, script_dir)
-from prime_fable_orchestrate import find_executable, usable_executable
+from efo_orchestrate import find_executable, usable_executable
 
 selected = usable_executable(override) if override_set == "1" else find_executable(name)
 if selected is None:

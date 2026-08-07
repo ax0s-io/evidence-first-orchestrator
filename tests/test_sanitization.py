@@ -21,15 +21,31 @@ REPO = Path(__file__).resolve().parents[1]
 PERSON_NAMES = ("Aa" + "ron", "Dy" + "son", "Chr" + "is", "Blasch" + "ke")
 ORG_SLUGS = ("ax" + "0s",)
 
-# Credit, consent, and the copyright grant are the subject matter of these
-# files, so the authors' names legitimately appear in them. Nowhere else.
+# Contact, credit, consent, and audit records legitimately discuss the names
+# as their subject matter. Nowhere else may carry them. Keep this set minimal:
+# a file listed here is unscanned, so an entry that does not need to be here is
+# a hole. `test_every_allowlisted_file_actually_needs_the_exemption` enforces
+# that by failing on any entry that carries no name at all.
 NAME_ALLOWED_FILES = frozenset(
-    {"ATTRIBUTION.md", "PUBLICATION_CHECKLIST.md", "README.md", "LICENSE"}
+    {
+        "ATTRIBUTION.md",
+        "LICENSE",
+        "PUBLICATION_CHECKLIST.md",
+        "README.md",
+        "SECURITY.md",
+    }
 )
 
 NAME_PATTERNS = tuple(
     (token, re.compile(rf"\b{re.escape(token)}\b", re.IGNORECASE))
     for token in PERSON_NAMES + ORG_SLUGS
+)
+
+# The public clone URL necessarily contains the organization slug. Permit only
+# this exact reference, not the entire file containing it. Assemble it from
+# fragments so the scanner continues to scan itself without a self-match.
+PUBLIC_REFERENCE_ALLOWLIST = (
+    "https://github.com/" + ORG_SLUGS[0] + "-io/evidence-first-orchestrator.git",
 )
 
 # An absolute path into somebody's home directory: a home root followed by a
@@ -106,7 +122,7 @@ class SanitizationTests(unittest.TestCase):
         """A scan over zero files would pass every other test in this class."""
         names = {path.relative_to(REPO).as_posix() for path in self.files}
         self.assertGreater(len(names), 15, "publishable file list is implausibly short")
-        for expected in ("README.md", "SKILL.md", "scripts/prime_fable_orchestrate.py"):
+        for expected in ("README.md", "SKILL.md", "scripts/efo_orchestrate.py"):
             self.assertIn(expected, names)
 
     def test_the_patterns_actually_match_what_they_are_looking_for(self):
@@ -127,6 +143,30 @@ class SanitizationTests(unittest.TestCase):
         for sample in ("$HOME/x", "docs/home/index.md"):
             self.assertNotRegex(sample, HOME_PATH_PATTERN)
 
+    def test_every_allowlisted_file_actually_needs_the_exemption(self):
+        """An allowlist entry is unscanned surface, so keep it earned.
+
+        A file listed but carrying no name is either dead (someone removed the
+        content but left the exemption) or speculative (someone widened the
+        allowlist in advance). Either way it is a place a name could later be
+        planted without this suite noticing.
+        """
+        unnecessary = []
+        for relative in sorted(NAME_ALLOWED_FILES):
+            path = REPO / relative
+            if not path.exists():
+                unnecessary.append(f"{relative} (missing)")
+                continue
+            text = "\n".join(read_lines(path))
+            if not any(pattern.search(text) for _, pattern in NAME_PATTERNS):
+                unnecessary.append(f"{relative} (contains no name)")
+        self.assertEqual(
+            unnecessary,
+            [],
+            "NAME_ALLOWED_FILES entries that do not need the exemption; remove "
+            f"them so the scan covers those files: {unnecessary}",
+        )
+
     def test_no_person_names_or_org_slugs_outside_the_attribution_files(self):
         findings: list[tuple[str, int, str]] = []
         for path in self.files:
@@ -134,8 +174,11 @@ class SanitizationTests(unittest.TestCase):
             if relative in NAME_ALLOWED_FILES:
                 continue
             for number, line in enumerate(read_lines(path), 1):
+                scanned = line
+                for allowed in PUBLIC_REFERENCE_ALLOWLIST:
+                    scanned = scanned.replace(allowed, "<public-repository-url>")
                 for token, pattern in NAME_PATTERNS:
-                    if pattern.search(line):
+                    if pattern.search(scanned):
                         findings.append((relative, number, token))
         self.assertEqual(
             findings,

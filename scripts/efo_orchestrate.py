@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prime-supervised Fable CLI orchestrator with Opus fallback and run evidence."""
+"""Evidence-first CLI orchestrator with safe cross-model fallback and run evidence."""
 from __future__ import annotations
 
 import argparse
@@ -22,8 +22,9 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from prime_metrics import build_metrics
-from prime_slot_controller import init_job
+from efo_metrics import build_metrics
+from efo_slot_controller import init_job
+from efo_version import VERSION
 
 SKILL_DIR = SCRIPT_DIR.parent
 CONTRACT_PATH = SKILL_DIR / "references" / "orchestration-contract.md"
@@ -82,20 +83,25 @@ def model_evidence_prefix(model: str) -> str:
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Run Fable through Claude CLI as Prime's external orchestrator; Opus is automatic fallback."
+        description="Run the primary model through Claude CLI with automatic Opus fallback."
+    )
+    p.add_argument(
+        "--version",
+        action="version",
+        version=f"evidence-first-orchestrator {VERSION}",
     )
     p.add_argument("--cwd", default=os.getcwd(), help="Trusted working directory for the task")
     p.add_argument("--brief-file", help="Read the task brief from this file instead of stdin")
     p.add_argument("--job-dir", help="Explicit evidence directory")
     p.add_argument(
         "--model",
-        default=os.environ.get("PRIME_PRIMARY_MODEL") or DEFAULT_PRIMARY_MODEL,
-        help="Primary model (default: PRIME_PRIMARY_MODEL or claude-fable-5)",
+        default=os.environ.get("EFO_PRIMARY_MODEL") or DEFAULT_PRIMARY_MODEL,
+        help="Primary model (default: EFO_PRIMARY_MODEL or claude-fable-5)",
     )
     p.add_argument(
         "--fallback-model",
-        default=os.environ.get("PRIME_FALLBACK_MODEL") or DEFAULT_FALLBACK_MODEL,
-        help="Availability fallback model (default: PRIME_FALLBACK_MODEL or claude-opus-5)",
+        default=os.environ.get("EFO_FALLBACK_MODEL") or DEFAULT_FALLBACK_MODEL,
+        help="Availability fallback model (default: EFO_FALLBACK_MODEL or claude-opus-5)",
     )
     p.add_argument("--resume", help="Resume a prior Claude CLI session id")
     p.add_argument("--session-id", help="Pin a new session UUID (generated when omitted)")
@@ -128,8 +134,8 @@ def make_job_dir(explicit: str | None) -> Path:
         path.mkdir(parents=True, exist_ok=False)
     else:
         stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
-        configured_root = os.environ.get("PRIME_ORCHESTRATION_RUN_ROOT")
-        run_root = Path(configured_root).expanduser() if configured_root else Path.home() / ".prime" / "orchestration-runs"
+        configured_root = os.environ.get("EFO_ORCHESTRATION_RUN_ROOT")
+        run_root = Path(configured_root).expanduser() if configured_root else Path.home() / ".efo" / "orchestration-runs"
         path = run_root.resolve() / f"{stamp}-{uuid.uuid4().hex[:8]}"
         path.mkdir(parents=True, exist_ok=False)
     path.chmod(0o700)
@@ -273,7 +279,7 @@ def _tool_names(value: object, names: list[str | None]) -> None:
 
 def assess_fallback_safety(job_dir: Path, stream_path: Path) -> tuple[bool, str, int, list[str]]:
     """Prove that retry cannot duplicate worker starts or mutating Claude tool effects."""
-    state_path = job_dir / ".prime-slots" / "state.json"
+    state_path = job_dir / ".efo-slots" / "state.json"
     try:
         state = json.loads(state_path.read_text())
         state_started = state.get("nodes_started") if isinstance(state, dict) else None
@@ -294,7 +300,7 @@ def assess_fallback_safety(job_dir: Path, stream_path: Path) -> tuple[bool, str,
     if state_started:
         return False, f"slot state records {state_started} started node(s)", state_started, []
 
-    events_path = job_dir / ".prime-slots" / "events.jsonl"
+    events_path = job_dir / ".efo-slots" / "events.jsonl"
     try:
         event_lines = events_path.read_text().splitlines()
     except OSError as exc:
@@ -587,7 +593,7 @@ def main() -> int:
     if not cwd.is_dir():
         raise SystemExit(f"--cwd is not a directory: {cwd}")
     claude_bin = resolve_executable(
-        "claude", "PRIME_CLAUDE_BIN", "prime-fable-orchestrate"
+        "claude", "EFO_CLAUDE_BIN", "efo-orchestrate"
     )
     if not CONTRACT_PATH.is_file() or not SCHEMA_PATH.is_file():
         raise SystemExit(f"Skill contract/schema missing under {SKILL_DIR}")
@@ -602,16 +608,16 @@ def main() -> int:
         "max_nodes": args.max_nodes,
     }
     env_exported = {
-        "PRIME_MAX_WORKERS": str(args.max_workers),
-        "PRIME_MAX_WRITERS": str(args.max_writers),
-        "PRIME_MAX_NODES": str(args.max_nodes),
-        "PRIME_ORCHESTRATION_JOB_DIR": str(job_dir),
+        "EFO_MAX_WORKERS": str(args.max_workers),
+        "EFO_MAX_WRITERS": str(args.max_writers),
+        "EFO_MAX_NODES": str(args.max_nodes),
+        "EFO_ORCHESTRATION_JOB_DIR": str(job_dir),
     }
     for variable in (
-        "PRIME_CLAUDE_BIN",
-        "PRIME_CODEX_LEG_BIN",
-        "PRIME_GROK_LEG_BIN",
-        "PRIME_GROK_BIN",
+        "EFO_CLAUDE_BIN",
+        "EFO_CODEX_LEG_BIN",
+        "EFO_GROK_LEG_BIN",
+        "EFO_GROK_BIN",
     ):
         if variable in os.environ:
             env_exported[variable] = os.environ[variable]
@@ -654,7 +660,7 @@ TASK
     ]
 
     def command_for(name: str, model: str, session_id: str, resume: bool = False) -> list[str]:
-        cmd = [*base_cmd, "--model", model, "--name", f"prime-{name}-{job_dir.name}"]
+        cmd = [*base_cmd, "--model", model, "--name", f"efo-{name}-{job_dir.name}"]
         cmd += ["--resume", session_id] if resume else ["--session-id", session_id]
         return cmd
 
@@ -708,16 +714,16 @@ TASK
         "HOME", "USER", "LOGNAME", "SHELL", "PATH", "TMPDIR", "LANG", "LC_ALL",
         "TERM", "COLORTERM", "NO_COLOR", "FORCE_COLOR", "SSH_AUTH_SOCK",
         "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME",
-        "PRIME_CLAUDE_BIN", "PRIME_CODEX_LEG_BIN", "PRIME_GROK_LEG_BIN",
-        "PRIME_GROK_BIN",
+        "EFO_CLAUDE_BIN", "EFO_CODEX_LEG_BIN", "EFO_GROK_LEG_BIN",
+        "EFO_GROK_BIN",
     }
     env = {key: value for key, value in os.environ.items() if key in keep_env}
     env["PATH"] = env.get("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
-    env["PRIME_ORCHESTRATION_JOB_DIR"] = str(job_dir)
-    env["PRIME_FABLE_ORCHESTRATION"] = "1"
-    env["PRIME_MAX_WORKERS"] = str(args.max_workers)
-    env["PRIME_MAX_WRITERS"] = str(args.max_writers)
-    env["PRIME_MAX_NODES"] = str(args.max_nodes)
+    env["EFO_ORCHESTRATION_JOB_DIR"] = str(job_dir)
+    env["EFO_ORCHESTRATION"] = "1"
+    env["EFO_MAX_WORKERS"] = str(args.max_workers)
+    env["EFO_MAX_WRITERS"] = str(args.max_writers)
+    env["EFO_MAX_NODES"] = str(args.max_nodes)
 
     started = time.monotonic()
     started_utc = utc_now()
@@ -945,7 +951,7 @@ TASK
     ended_utc = utc_now()
 
     if fallback_blocked_reason:
-        print(f"prime-fable-orchestrate: {fallback_blocked_reason}. {next_action}", file=sys.stderr)
+        print(f"efo-orchestrate: {fallback_blocked_reason}. {next_action}", file=sys.stderr)
 
     command_record["attempts"] = [published_attempt(attempt, True) for attempt in attempts]
     command_record["fallback_triggered"] = fallback_triggered

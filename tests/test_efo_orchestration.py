@@ -13,14 +13,14 @@ import unittest
 
 SKILL_DIR = Path(__file__).resolve().parents[1]
 SCRIPTS = SKILL_DIR / "scripts"
-CONTROLLER = SCRIPTS / "prime_slot_controller.py"
-METRICS = SCRIPTS / "prime_metrics.py"
-LAUNCHER = SCRIPTS / "prime_fable_orchestrate.py"
-CODEX_WRAPPER = SCRIPTS / "prime_codex_leg.sh"
-GROK_WRAPPER = SCRIPTS / "prime_grok_leg.sh"
+CONTROLLER = SCRIPTS / "efo_slot_controller.py"
+METRICS = SCRIPTS / "efo_metrics.py"
+LAUNCHER = SCRIPTS / "efo_orchestrate.py"
+CODEX_WRAPPER = SCRIPTS / "efo_codex_leg.sh"
+GROK_WRAPPER = SCRIPTS / "efo_grok_leg.sh"
 sys.path.insert(0, str(SCRIPTS))
-from prime_metrics import build_metrics  # noqa: E402
-from prime_fable_orchestrate import (  # noqa: E402
+from efo_metrics import build_metrics  # noqa: E402
+from efo_orchestrate import (  # noqa: E402
     USAGE_CREDIT_RESULT,
     assess_fallback_safety,
     detect_availability_error,
@@ -33,7 +33,7 @@ LIMITS = {"max_workers": 4, "max_writers": 2, "max_nodes": 12}
 
 
 def read_events(job: Path) -> list[dict]:
-    path = job / ".prime-slots" / "events.jsonl"
+    path = job / ".efo-slots" / "events.jsonl"
     if not path.exists():
         return []
     events = []
@@ -78,7 +78,7 @@ class SlotControllerTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             events = read_events(job)
             self.assertEqual([e["event"] for e in events], ["queued", "started", "finished"])
-            state = json.loads((job / ".prime-slots" / "state.json").read_text())
+            state = json.loads((job / ".efo-slots" / "state.json").read_text())
             self.assertEqual(state["holders"], [])
             self.assertEqual(state["nodes_started"], 1)
 
@@ -91,7 +91,7 @@ class SlotControllerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             job = Path(td)
             env = os.environ.copy()
-            env.update(PRIME_MAX_WORKERS="2", PRIME_MAX_WRITERS="2", PRIME_MAX_NODES="6", PRIME_SLOT_POLL_S="0.02")
+            env.update(EFO_MAX_WORKERS="2", EFO_MAX_WRITERS="2", EFO_MAX_NODES="6", EFO_SLOT_POLL_S="0.02")
             first = subprocess.Popen(controller_cmd(job, command=["/bin/sh", "-c", "sleep 1"]) , env=env)
             second = subprocess.Popen(controller_cmd(job, command=["/bin/sh", "-c", "sleep 1"]), env=env)
             self.assertTrue(wait_for(lambda: sum(e["event"] == "started" for e in read_events(job)) == 2))
@@ -108,7 +108,7 @@ class SlotControllerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             job = Path(td)
             env = os.environ.copy()
-            env.update(PRIME_MAX_WORKERS="4", PRIME_MAX_WRITERS="1", PRIME_MAX_NODES="6", PRIME_SLOT_POLL_S="0.02")
+            env.update(EFO_MAX_WORKERS="4", EFO_MAX_WRITERS="1", EFO_MAX_NODES="6", EFO_SLOT_POLL_S="0.02")
             writer_one = subprocess.Popen(controller_cmd(job, "writer", ["/bin/sh", "-c", "sleep 0.8"]), env=env)
             self.assertTrue(wait_for(lambda: sum(e["event"] == "started" for e in read_events(job)) == 1))
             writer_two = subprocess.Popen(controller_cmd(job, "writer", ["/bin/sh", "-c", "sleep 0.05"]), env=env)
@@ -129,11 +129,11 @@ class SlotControllerTests(unittest.TestCase):
             writer_marker = job / "writer-ran"
             env = os.environ.copy()
             env.update(
-                PRIME_MAX_WORKERS="2",
-                PRIME_MAX_WRITERS="0",
-                PRIME_MAX_NODES="4",
-                PRIME_SLOT_QUEUE_TIMEOUT_S="0.08",
-                PRIME_SLOT_POLL_S="0.01",
+                EFO_MAX_WORKERS="2",
+                EFO_MAX_WRITERS="0",
+                EFO_MAX_NODES="4",
+                EFO_SLOT_QUEUE_TIMEOUT_S="0.08",
+                EFO_SLOT_POLL_S="0.01",
             )
             reader = subprocess.run(
                 controller_cmd(job, "reader", ["/usr/bin/touch", str(reader_marker)]),
@@ -160,7 +160,7 @@ class SlotControllerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             job = Path(td)
             env = os.environ.copy()
-            env.update(PRIME_MAX_WORKERS="2", PRIME_MAX_WRITERS="1", PRIME_MAX_NODES="2")
+            env.update(EFO_MAX_WORKERS="2", EFO_MAX_WRITERS="1", EFO_MAX_NODES="2")
             for _ in range(2):
                 self.assertEqual(subprocess.run(controller_cmd(job), env=env).returncode, 0)
             started = time.monotonic()
@@ -173,9 +173,9 @@ class SlotControllerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             job = Path(td)
             env = os.environ.copy()
-            env.update(PRIME_MAX_WORKERS="1", PRIME_MAX_WRITERS="1", PRIME_MAX_NODES="1")
+            env.update(EFO_MAX_WORKERS="1", EFO_MAX_WRITERS="1", EFO_MAX_NODES="1")
             self.assertEqual(subprocess.run(controller_cmd(job), env=env).returncode, 0)
-            state_path = job / ".prime-slots" / "state.json"
+            state_path = job / ".efo-slots" / "state.json"
             corrupt_bytes = b'{"schema_version":1,"nodes_started":'
             state_path.write_bytes(corrupt_bytes)
             child_marker = job / "child-ran"
@@ -201,7 +201,7 @@ class SlotControllerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             job = Path(td)
             subprocess.run([sys.executable, str(CONTROLLER), "init", "--job-dir", str(job)], check=True)
-            state_path = job / ".prime-slots" / "state.json"
+            state_path = job / ".efo-slots" / "state.json"
             state_path.unlink()
 
             result = subprocess.run(controller_cmd(job), capture_output=True, text=True)
@@ -217,7 +217,7 @@ class SlotControllerTests(unittest.TestCase):
             command = ["/bin/sh", "-c", f"while [ ! -e '{release_marker}' ]; do sleep 0.02; done"]
             controller = subprocess.Popen(controller_cmd(job, command=command))
             self.assertTrue(wait_for(lambda: any(e.get("event") == "started" for e in read_events(job))))
-            state_path = job / ".prime-slots" / "state.json"
+            state_path = job / ".efo-slots" / "state.json"
             corrupt_bytes = b"not-json\n"
             state_path.write_bytes(corrupt_bytes)
             release_marker.touch()
@@ -246,10 +246,10 @@ class SlotControllerTests(unittest.TestCase):
                 "acquired_at": "2026-01-01T00:00:00Z",
                 "wait_s": 0.0,
             }
-            state_path = job / ".prime-slots" / "state.json"
+            state_path = job / ".efo-slots" / "state.json"
             state_path.write_text(json.dumps({"schema_version": 1, "nodes_started": 0, "holders": [stale]}))
             env = os.environ.copy()
-            env.update(PRIME_MAX_WORKERS="1", PRIME_MAX_WRITERS="1", PRIME_MAX_NODES="2")
+            env.update(EFO_MAX_WORKERS="1", EFO_MAX_WRITERS="1", EFO_MAX_NODES="2")
             result = subprocess.run(controller_cmd(job), env=env, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertTrue(any(e.get("event") == "pruned" and e.get("stale_holder", {}).get("node_id") == "stale-node" for e in read_events(job)))
@@ -266,7 +266,7 @@ class SlotControllerTests(unittest.TestCase):
             controller.send_signal(signal.SIGTERM)
             self.assertEqual(controller.wait(timeout=15), -signal.SIGTERM)
             self.assertTrue(wait_for(lambda: not self._pid_alive(child_pid), timeout=2))
-            state = json.loads((job / ".prime-slots" / "state.json").read_text())
+            state = json.loads((job / ".efo-slots" / "state.json").read_text())
             self.assertEqual(state["holders"], [])
             self.assertTrue(any(e["event"] == "finished" for e in read_events(job)))
 
@@ -282,19 +282,19 @@ class SlotControllerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             job = Path(td)
             cases = [
-                {"PRIME_MAX_WORKERS": "0"},
-                {"PRIME_MAX_WORKERS": "13"},
-                {"PRIME_MAX_WORKERS": "nope"},
-                {"PRIME_MAX_WORKERS": "2", "PRIME_MAX_WRITERS": "3"},
+                {"EFO_MAX_WORKERS": "0"},
+                {"EFO_MAX_WORKERS": "13"},
+                {"EFO_MAX_WORKERS": "nope"},
+                {"EFO_MAX_WORKERS": "2", "EFO_MAX_WRITERS": "3"},
             ]
             for updates in cases:
                 with self.subTest(updates=updates):
                     env = os.environ.copy()
-                    env.update(PRIME_MAX_WORKERS="4", PRIME_MAX_WRITERS="2", PRIME_MAX_NODES="12")
+                    env.update(EFO_MAX_WORKERS="4", EFO_MAX_WRITERS="2", EFO_MAX_NODES="12")
                     env.update(updates)
                     result = subprocess.run(controller_cmd(job), env=env, capture_output=True, text=True)
                     self.assertEqual(result.returncode, 2)
-                    self.assertIn("prime-slot-controller:", result.stderr)
+                    self.assertIn("efo-slot-controller:", result.stderr)
 
 
 class MetricsTests(unittest.TestCase):
@@ -307,7 +307,7 @@ class MetricsTests(unittest.TestCase):
     def test_metrics_calculation_for_known_interleaving(self):
         with tempfile.TemporaryDirectory() as td:
             job = Path(td)
-            slots = job / ".prime-slots"
+            slots = job / ".efo-slots"
             slots.mkdir()
             events = [
                 self.event("2026-01-01T00:00:00Z", "queued", "a", "codex", "reader"),
@@ -333,7 +333,7 @@ class MetricsTests(unittest.TestCase):
     def test_empty_events_produce_ok_all_zero_metrics(self):
         with tempfile.TemporaryDirectory() as td:
             job = Path(td)
-            slots = job / ".prime-slots"
+            slots = job / ".efo-slots"
             slots.mkdir()
             (slots / "events.jsonl").write_text("")
             metrics = build_metrics(job, LIMITS, {})
@@ -348,24 +348,24 @@ class MetricsTests(unittest.TestCase):
             self.assertEqual(missing["status"], "degraded")
             self.assertFalse(missing["events"]["present"])
         with tempfile.TemporaryDirectory() as td:
-            job = Path(td); slots = job / ".prime-slots"; slots.mkdir()
+            job = Path(td); slots = job / ".efo-slots"; slots.mkdir()
             valid = self.event("2026-01-01T00:00:00Z", "queued", "a", "codex", "reader")
             (slots / "events.jsonl").write_text(json.dumps(valid) + "\nnot-json\n" + json.dumps(valid) + "\n")
             self.assertEqual(build_metrics(job, LIMITS, {})["status"], "degraded")
         with tempfile.TemporaryDirectory() as td:
-            job = Path(td); slots = job / ".prime-slots"; slots.mkdir()
+            job = Path(td); slots = job / ".efo-slots"; slots.mkdir()
             valid = self.event("2026-01-01T00:00:00Z", "queued", "a", "codex", "reader")
             (slots / "events.jsonl").write_text(json.dumps(valid) + "\n{")
             torn = build_metrics(job, LIMITS, {})
             self.assertEqual(torn["status"], "ok_with_warnings")
             self.assertIn("torn trailing write", torn["warnings"][0])
         with tempfile.TemporaryDirectory() as td:
-            job = Path(td); slots = job / ".prime-slots"; slots.mkdir()
+            job = Path(td); slots = job / ".efo-slots"; slots.mkdir()
             finished = self.event("2026-01-01T00:00:00Z", "finished", "a", "codex", "reader", rc=0, signal=None, active_total=0, active_writers=0)
             (slots / "events.jsonl").write_text(json.dumps(finished) + "\n")
             self.assertEqual(build_metrics(job, LIMITS, {})["status"], "degraded")
         with tempfile.TemporaryDirectory() as td:
-            job = Path(td); slots = job / ".prime-slots"; slots.mkdir()
+            job = Path(td); slots = job / ".efo-slots"; slots.mkdir()
             starts = [self.event(f"2026-01-01T00:00:0{i}Z", "started", str(i), "codex", "reader", wait_s=0, active_total=i, active_writers=0) for i in range(1, 3)]
             finishes = [self.event(f"2026-01-01T00:00:1{i}Z", "finished", str(i), "codex", "reader", rc=0, signal=None, active_total=2-i, active_writers=0) for i in range(1, 3)]
             (slots / "events.jsonl").write_text("".join(json.dumps(e) + "\n" for e in starts + finishes))
@@ -380,9 +380,9 @@ class WrapperTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as path_dir:
             env["PATH"] = path_dir
             if job is None:
-                env.pop("PRIME_ORCHESTRATION_JOB_DIR", None)
+                env.pop("EFO_ORCHESTRATION_JOB_DIR", None)
             else:
-                env["PRIME_ORCHESTRATION_JOB_DIR"] = str(job)
+                env["EFO_ORCHESTRATION_JOB_DIR"] = str(job)
             result = subprocess.run(["/bin/bash", str(wrapper), *args], env=env, capture_output=True, text=True)
         self.assertEqual(result.returncode, 2, (args, result.stderr))
         self.assertTrue(result.stderr.startswith(prefix), result.stderr)
@@ -400,7 +400,7 @@ class WrapperTests(unittest.TestCase):
                 (["--lane", "reader"], None),
                 (["--lane", "reader"], nonexistent),
             ]
-            for wrapper, prefix in ((CODEX_WRAPPER, "prime-codex-leg:"), (GROK_WRAPPER, "prime-grok-leg:")):
+            for wrapper, prefix in ((CODEX_WRAPPER, "efo-codex-leg:"), (GROK_WRAPPER, "efo-grok-leg:")):
                 for args, selected_job in common:
                     with self.subTest(wrapper=wrapper.name, args=args, job=selected_job):
                         self.run_rejection(wrapper, args, selected_job, prefix)
@@ -414,8 +414,8 @@ class WrapperTests(unittest.TestCase):
             ]
             for args in grok_cases:
                 with self.subTest(grok=args):
-                    self.run_rejection(GROK_WRAPPER, args, job, "prime-grok-leg:")
-            self.run_rejection(CODEX_WRAPPER, ["--lane", "reader", "-s", "workspace-write"], job, "prime-codex-leg:")
+                    self.run_rejection(GROK_WRAPPER, args, job, "efo-grok-leg:")
+            self.run_rejection(CODEX_WRAPPER, ["--lane", "reader", "-s", "workspace-write"], job, "efo-codex-leg:")
 
     def test_lane_is_stripped_and_forwarded_argument_order_is_preserved(self):
         with tempfile.TemporaryDirectory() as td:
@@ -433,12 +433,12 @@ class WrapperTests(unittest.TestCase):
                 adapter.chmod(0o755)
             env = os.environ.copy()
             env.update(
-                PRIME_ORCHESTRATION_JOB_DIR=str(job),
-                PRIME_ORCHESTRATION_TEST="1",
-                PRIME_SLOT_CONTROLLER=str(stub),
+                EFO_ORCHESTRATION_JOB_DIR=str(job),
+                EFO_ORCHESTRATION_TEST="1",
+                EFO_SLOT_CONTROLLER=str(stub),
                 STUB_OUT=str(output),
-                PRIME_CODEX_LEG_BIN=str(codex_leg),
-                PRIME_GROK_LEG_BIN=str(grok_leg),
+                EFO_CODEX_LEG_BIN=str(codex_leg),
+                EFO_GROK_LEG_BIN=str(grok_leg),
             )
             codex_args = ["--stream", "one", "--lane", "writer", "--stall-s", "9", "--", "-s", "workspace-write", "brief"]
             result = subprocess.run(["/bin/bash", str(CODEX_WRAPPER), *codex_args], env=env, capture_output=True, text=True)
@@ -485,7 +485,7 @@ class LauncherTests(unittest.TestCase):
         stub.write_text("#!/bin/sh\nexit 0\n")
         stub.chmod(0o700)
         env = os.environ.copy()
-        env["PRIME_CLAUDE_BIN"] = str(stub)
+        env["EFO_CLAUDE_BIN"] = str(stub)
         return subprocess.run(
             [sys.executable, str(LAUNCHER), "--dry-run", "--job-dir", str(job), "--cwd", str(SKILL_DIR), *extra],
             input="test brief\n",
@@ -560,7 +560,7 @@ raise SystemExit({fable_rc!r} if model == 'claude-fable-5' else {opus_rc!r})
         stub.write_text(source)
         stub.chmod(0o700)
         env = os.environ.copy()
-        env.update(PRIME_FABLE_ORCHESTRATION_TEST="1", PRIME_CLAUDE_BIN=str(stub))
+        env.update(EFO_ORCHESTRATION_TEST="1", EFO_CLAUDE_BIN=str(stub))
         result = subprocess.run(
             [
                 sys.executable,
@@ -604,12 +604,12 @@ raise SystemExit({fable_rc!r} if model == 'claude-fable-5' else {opus_rc!r})
             self.assertEqual(json.loads((job / "limits.json").read_text()), limits)
             command = json.loads((job / "command.json").read_text())
             self.assertEqual(command["limits"], limits)
-            self.assertEqual(command["env_exported"]["PRIME_MAX_NODES"], "20")
-            self.assertEqual(command["env_exported"]["PRIME_ORCHESTRATION_JOB_DIR"], str(job.resolve()))
+            self.assertEqual(command["env_exported"]["EFO_MAX_NODES"], "20")
+            self.assertEqual(command["env_exported"]["EFO_ORCHESTRATION_JOB_DIR"], str(job.resolve()))
             self.assertEqual(json.loads((job / "meta.json").read_text())["limits"], limits)
             schema = json.loads((job / "result-schema.json").read_text())
             self.assertEqual(schema["properties"]["workers"]["maxItems"], 20)
-            self.assertFalse((job / ".prime-slots").exists())
+            self.assertFalse((job / ".efo-slots").exists())
 
     def test_launcher_dry_run_allows_zero_writers(self):
         with tempfile.TemporaryDirectory() as td:
@@ -621,7 +621,7 @@ raise SystemExit({fable_rc!r} if model == 'claude-fable-5' else {opus_rc!r})
             self.assertEqual(json.loads((job / "limits.json").read_text()), limits)
             command = json.loads((job / "command.json").read_text())
             self.assertEqual(command["limits"], limits)
-            self.assertEqual(command["env_exported"]["PRIME_MAX_WRITERS"], "0")
+            self.assertEqual(command["env_exported"]["EFO_MAX_WRITERS"], "0")
 
     def test_quota_after_only_safe_read_retries_fresh_opus_and_records_attempt_evidence(self):
         with tempfile.TemporaryDirectory() as td:
@@ -783,7 +783,7 @@ raise SystemExit({fable_rc!r} if model == 'claude-fable-5' else {opus_rc!r})
     def test_corrupt_slot_state_cannot_prove_replay_safe(self):
         with tempfile.TemporaryDirectory() as td:
             job = Path(td)
-            slots = job / ".prime-slots"
+            slots = job / ".efo-slots"
             slots.mkdir()
             (slots / "state.json").write_text("{not-json")
             (slots / "events.jsonl").write_text("")
@@ -832,7 +832,7 @@ import sys
 
 scenario = {scenario!r}
 args = sys.argv[1:]
-job = Path(os.environ["PRIME_ORCHESTRATION_JOB_DIR"])
+job = Path(os.environ["EFO_ORCHESTRATION_JOB_DIR"])
 calls_path = job / "fake-claude-calls.jsonl"
 model = args[args.index("--model") + 1]
 session_flag = "--resume" if "--resume" in args else "--session-id"
@@ -869,7 +869,7 @@ success = {{
     "modelUsage": {{model: {{}}}},
 }}
 if scenario == "worker_credit" and model == "claude-fable-5":
-    events = job / ".prime-slots" / "events.jsonl"
+    events = job / ".efo-slots" / "events.jsonl"
     with events.open("a") as stream:
         stream.write(json.dumps({{"event": "started", "node_id": "fake-worker", "vendor": "codex", "lane": "reader"}}) + "\\n")
 if model == "claude-fable-5" and scenario in ("fallback_success", "worker_credit", "opus_failure"):
@@ -895,7 +895,7 @@ print(json.dumps(event), flush=True)
         # The launcher must find the CLI the operator installed under HOME.
         # Clear the two variables that would otherwise point it elsewhere.
         env.pop("XDG_BIN_HOME", None)
-        env.pop("PRIME_CLAUDE_BIN", None)
+        env.pop("EFO_CLAUDE_BIN", None)
         env["HOME"] = str(home)
         result = subprocess.run(
             [

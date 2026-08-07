@@ -3,7 +3,7 @@
 Start here every time:
 
 ```bash
-./scripts/prime_preflight.py            # is the environment sane?
+./scripts/efo_preflight.py              # is the environment sane?
 cat "$JOB/meta.json"                    # what did the run actually conclude?
 cat "$JOB/final-validation-errors.json" # which invariant broke?
 ```
@@ -14,17 +14,17 @@ cat "$JOB/final-validation-errors.json" # which invariant broke?
 
 ## Startup failures
 
-### `Claude CLI not found; set PRIME_CLAUDE_BIN ...`
+### `Claude CLI not found; set EFO_CLAUDE_BIN ...`
 
 `claude` is in neither the user bin directory (`$XDG_BIN_HOME`, or
-`$HOME/.local/bin` when unset) nor on `PATH`, and `PRIME_CLAUDE_BIN` is unset.
+`$HOME/.local/bin` when unset) nor on `PATH`, and `EFO_CLAUDE_BIN` is unset.
 Either install the Claude Code CLI or point the variable at it:
 
 ```bash
-PRIME_CLAUDE_BIN=/opt/tools/claude ./scripts/prime_preflight.py
+EFO_CLAUDE_BIN=/opt/tools/claude ./scripts/efo_preflight.py
 ```
 
-### `PRIME_<TOOL>_BIN does not name a usable executable: <value>`
+### `EFO_<TOOL>_BIN does not name a usable executable: <value>`
 
 The override is set but the target is missing, not a regular file, not
 executable, or world-writable (or sits in a world-writable directory that has
@@ -33,7 +33,7 @@ deliberately fatal — after an explicit override, silently falling back to
 `PATH` would run a different binary than you asked for.
 
 ```bash
-ls -l "$PRIME_CODEX_LEG_BIN"; chmod 755 "$PRIME_CODEX_LEG_BIN"
+ls -l "$EFO_CODEX_LEG_BIN"; chmod 755 "$EFO_CODEX_LEG_BIN"
 ```
 
 ### `codex-leg not found` / `grok-leg not found`
@@ -56,7 +56,7 @@ simultaneous workers than total starts.
 
 Nothing was piped in. Use a heredoc or `--brief-file`.
 
-### `ModuleNotFoundError: prime_metrics` when run through a symlink
+### `ModuleNotFoundError: efo_metrics` when run through a symlink
 
 The launcher must add its own resolved directory to `sys.path`. If you see
 this, you are on an old copy, or the symlink points somewhere the sibling
@@ -66,7 +66,7 @@ modules are not.
 
 ## Worker dispatch failures
 
-### `prime-codex-leg: --lane reader|writer is required`
+### `efo-codex-leg: --lane reader|writer is required`
 
 Every worker declares a lane. It must be space-separated (`--lane writer`);
 `--lane=writer` is rejected so the argument parse cannot be ambiguous.
@@ -76,15 +76,17 @@ Every worker declares a lane. It must be space-separated (`--lane writer`);
 A reader asked for a writable sandbox. Either make it a writer (and accept the
 writer cap) or use a read-only sandbox.
 
-### `PRIME_ORCHESTRATION_JOB_DIR must be an existing directory`
+### `EFO_ORCHESTRATION_JOB_DIR must be an existing directory`
 
 An adapter was invoked outside a launcher-managed run. Adapters are only
 callable from inside a job.
 
-### `prime-grok-leg: explicit --cwd is required` / `must be narrower than ...`
+### `efo-grok-leg: explicit --cwd is required` / `must be narrower than ...`
 
-Grok workers must be bounded to a directory strictly narrower than `/` and than
-`$HOME`. Point `--cwd` at the specific worktree.
+The in-repository layer rejects a `--cwd` that resolves to `/` or exactly
+`$HOME`; it does not prove that every other directory is narrow. Point `--cwd`
+at the specific worktree, and rely on the user-supplied adapter for actual
+filesystem confinement.
 
 ### `--sandbox off is forbidden` / `--profile full is forbidden`
 
@@ -93,7 +95,7 @@ them, it does not belong in a Grok worker on this path.
 
 ### Workers queue and never start
 
-Expected when a cap is saturated — check `.prime-slots/events.jsonl` for
+Expected when a cap is saturated — check `.efo-slots/events.jsonl` for
 `queued` events without a matching `started`, and `orchestration-metrics.json`
 for `queue.max_wait_s`. If nothing is running at all, look for a `denied` event
 citing the cumulative node cap: the run has spent `--max-nodes`.
@@ -101,7 +103,7 @@ citing the cumulative node cap: the run has spent `--max-nodes`.
 ### Workers refuse to start after a crash
 
 Slot state fails closed when it cannot be parsed. Inspect
-`.prime-slots/state.json`. Stale holders whose process is gone are pruned
+`.efo-slots/state.json`. Stale holders whose process is gone are pruned
 automatically; a corrupt file is not "repaired" by guessing. Start a new job.
 
 ---
@@ -127,7 +129,7 @@ normalized one. The disagreement is intentional evidence, not corruption.
 ### `<field> does not exist` / `is empty` / `is outside the job directory`
 
 The result cited evidence that isn't there. All worker streams and artifacts
-must be written **under** `$PRIME_ORCHESTRATION_JOB_DIR`, one stream path per
+must be written **under** `$EFO_ORCHESTRATION_JOB_DIR`, one stream path per
 worker, and must be non-empty. This is what makes "I verified it" checkable.
 
 ### `reports N workers but no slot-controller node starts were recorded`
@@ -161,8 +163,8 @@ mid-write. Treat the metrics as unreliable; the streams are still intact.
 
 ### `automatic fallback refused: <detail>`
 
-The primary hit an availability error, but the run could not be proven
-side-effect free, so it was not replayed. Details map to:
+The primary hit an availability error, but the evidence could not prove that
+the run had no side effects, so it was not replayed. Details map to:
 
 - *slot state records N started node(s)* — workers already ran; replaying would
   duplicate them.
@@ -214,7 +216,7 @@ jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_us
   "$JOB/claude-fable-stream.jsonl" | sort | uniq -c
 
 # worker lifecycle
-jq -r '[.ts,.vendor,.lane,.event] | @tsv' "$JOB/.prime-slots/events.jsonl"
+jq -r '[.ts,.vendor,.lane,.event] | @tsv' "$JOB/.efo-slots/events.jsonl"
 
 # the four things worth reading first
 jq '{status,reported_status,normalized_status,result_normalization,

@@ -24,7 +24,7 @@ def utc_now() -> str:
 
 
 def _paths(job_dir: str) -> tuple[str, str, str, str]:
-    state_dir = os.path.join(job_dir, ".prime-slots")
+    state_dir = os.path.join(job_dir, ".efo-slots")
     return (
         state_dir,
         os.path.join(state_dir, "state.lock"),
@@ -120,9 +120,9 @@ def _limits_from_env() -> dict[str, int]:
         except ValueError:
             raise ValueError(f"{label} must be an integer, got {raw!r}") from None
 
-    workers = integer("PRIME_MAX_WORKERS", 4, "max_workers")
-    writers = integer("PRIME_MAX_WRITERS", 2, "max_writers")
-    nodes = integer("PRIME_MAX_NODES", 12, "max_nodes")
+    workers = integer("EFO_MAX_WORKERS", 4, "max_workers")
+    writers = integer("EFO_MAX_WRITERS", 2, "max_writers")
+    nodes = integer("EFO_MAX_NODES", 12, "max_nodes")
     if not 1 <= workers <= 12:
         raise ValueError(f"max_workers must be in 1..12, got {workers}")
     if not 0 <= writers <= workers:
@@ -195,7 +195,7 @@ class SlotRun:
                 if corrupt_detail:
                     detail = f"{corrupt_detail}; admission denied and state preserved for manual recovery"
                     _append_event(self.events_path, self._event("state_corrupt", detail=detail))
-                    print(f"prime-slot-controller: {detail}", file=sys.stderr)
+                    print(f"efo-slot-controller: {detail}", file=sys.stderr)
                     return 70
                 assert state is not None
 
@@ -238,7 +238,7 @@ class SlotRun:
                         self._event("denied", reason="node_cap", wait_s=round(wait_s, 6), limits=self.limits),
                     )
                     print(
-                        f"prime-slot-controller: cumulative node cap {self.limits['max_nodes']} reached",
+                        f"efo-slot-controller: cumulative node cap {self.limits['max_nodes']} reached",
                         file=sys.stderr,
                     )
                     return 78
@@ -280,7 +280,7 @@ class SlotRun:
                         self._event("denied", reason="queue_timeout", wait_s=round(wait_s, 6), limits=self.limits),
                     )
                     print(
-                        f"prime-slot-controller: slot queue timed out after {wait_s:.3f}s",
+                        f"efo-slot-controller: slot queue timed out after {wait_s:.3f}s",
                         file=sys.stderr,
                     )
                     return 75
@@ -391,31 +391,31 @@ class SlotRun:
 
 
 def run_child(args: argparse.Namespace) -> int:
-    job_dir = args.job_dir or os.environ.get("PRIME_ORCHESTRATION_JOB_DIR")
+    job_dir = args.job_dir or os.environ.get("EFO_ORCHESTRATION_JOB_DIR")
     if not job_dir:
-        print("prime-slot-controller: --job-dir or PRIME_ORCHESTRATION_JOB_DIR is required", file=sys.stderr)
+        print("efo-slot-controller: --job-dir or EFO_ORCHESTRATION_JOB_DIR is required", file=sys.stderr)
         return 2
     job_dir = os.path.abspath(os.path.expanduser(job_dir))
     if not os.path.isdir(job_dir):
-        print(f"prime-slot-controller: job directory does not exist: {job_dir}", file=sys.stderr)
+        print(f"efo-slot-controller: job directory does not exist: {job_dir}", file=sys.stderr)
         return 2
     if not getattr(args, "command_separator_present", False):
-        print("prime-slot-controller: child command must follow --", file=sys.stderr)
+        print("efo-slot-controller: child command must follow --", file=sys.stderr)
         return 2
     if not args.command:
-        print("prime-slot-controller: child command after -- is required", file=sys.stderr)
+        print("efo-slot-controller: child command after -- is required", file=sys.stderr)
         return 2
     try:
         limits = _limits_from_env()
-        queue_timeout = _positive_float("PRIME_SLOT_QUEUE_TIMEOUT_S", 1800, "queue_timeout_s")
-        poll_s = _positive_float("PRIME_SLOT_POLL_S", 0.25, "poll_s")
+        queue_timeout = _positive_float("EFO_SLOT_QUEUE_TIMEOUT_S", 1800, "queue_timeout_s")
+        poll_s = _positive_float("EFO_SLOT_POLL_S", 0.25, "poll_s")
         state_dir, _, _, _ = _paths(job_dir)
         if not os.path.isdir(state_dir):
             init_job(job_dir)
         else:
             os.chmod(state_dir, 0o700)
     except (ValueError, OSError) as exc:
-        print(f"prime-slot-controller: {exc}", file=sys.stderr)
+        print(f"efo-slot-controller: {exc}", file=sys.stderr)
         return 2
 
     label = args.label or os.path.basename(args.command[0])
@@ -484,7 +484,7 @@ def run_child(args: argparse.Namespace) -> int:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="prime-slot-controller")
+    parser = argparse.ArgumentParser(prog="efo-slot-controller")
     subparsers = parser.add_subparsers(dest="action", required=True)
     init_parser = subparsers.add_parser("init")
     init_parser.add_argument("--job-dir", required=True)
@@ -510,7 +510,7 @@ def main(argv: list[str] | None = None) -> int:
         return run_child(args)
     job_dir = os.path.abspath(os.path.expanduser(args.job_dir))
     if not os.path.isdir(job_dir):
-        print(f"prime-slot-controller: job directory does not exist: {job_dir}", file=sys.stderr)
+        print(f"efo-slot-controller: job directory does not exist: {job_dir}", file=sys.stderr)
         return 2
     try:
         init_job(job_dir)
@@ -525,7 +525,7 @@ def main(argv: list[str] | None = None) -> int:
                 fcntl.flock(lock_fd, fcntl.LOCK_UN)
                 os.close(lock_fd)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
-        print(f"prime-slot-controller: {exc}", file=sys.stderr)
+        print(f"efo-slot-controller: {exc}", file=sys.stderr)
         return 2
     return 0
 

@@ -1,24 +1,25 @@
 ---
-name: prime-fable-orchestrator
+name: evidence-first-orchestrator
 description: Runs a complex task through a bounded multi-vendor orchestration graph using authenticated provider CLIs. A top-level Claude Code session decomposes the task and dispatches Codex and Grok workers through slot-controlled adapters with reader/writer lanes and hard concurrency caps; the launcher independently validates the result against recorded evidence. Use for substantial multi-agent coding, research, implementation, or verification. Keep simple tasks inline.
 ---
 
 # Bounded multi-vendor orchestration
 
-Reach for this when a task genuinely benefits from decomposition, external
-workers, and cross-vendor verification — substantial implementation, wide
-research, or a correctness claim that needs independent refutation. A task you
-could finish in a few tool calls should stay inline; the setup cost is real.
+This agent skill definition is suitable when a task genuinely benefits from
+decomposition, external workers, and cross-vendor verification — substantial
+implementation, wide research, or a correctness claim that needs independent
+refutation. A task that fits in a few tool calls should stay inline; the setup
+overhead is real.
 
 Requires a POSIX system with Python 3.10+, an authenticated Claude Code CLI,
 and — only if you want those workers — the external `codex-leg` and `grok-leg`
-adapters. Run `prime-preflight` to see what resolves. Full setup in
+adapters. Run `efo-preflight` to see what resolves. Full setup in
 `docs/setup.md`; adapter contracts in `docs/adapters.md`.
 
 ## Routing rules
 
-- Codex workers go through `prime-codex-leg`; Grok workers through
-  `prime-grok-leg`. Both require `--lane reader|writer` and enforce job-wide
+- Codex workers go through `efo-codex-leg`; Grok workers through
+  `efo-grok-leg`. Both require `--lane reader|writer` and enforce job-wide
   caps through a separate slot-controller process.
 - Bare `codex-leg` / `grok-leg`, direct vendor CLIs, API-key code paths, and
   nested agent/workflow tools are prohibited for workers — each bypasses the
@@ -36,7 +37,7 @@ fan-in, worker evidence, and validation semantics before reporting success.
 ## Start a run
 
 ```bash
-prime-fable-orchestrate --cwd /absolute/trusted/worktree <<'BRIEF'
+efo-orchestrate --cwd /absolute/trusted/worktree <<'BRIEF'
 <self-contained objective, relevant context, constraints, authorization
 boundary, and mechanically checkable acceptance criteria>
 BRIEF
@@ -44,11 +45,12 @@ BRIEF
 
 Set the caps to the shape of the work with `--max-workers` (default 4, 1–12),
 `--max-writers` (default 2, 0–max-workers), and `--max-nodes` (default 12,
-max-workers–100). `--max-writers 0` makes a run mechanically read-only:
-reader lanes still run, writer lanes are impossible.
+max-workers–100). `--max-writers 0` mechanically prevents writer-lane starts;
+reader lanes still run, so their user-supplied adapters must enforce read-only
+sandboxing.
 
 ```bash
-prime-fable-orchestrate --cwd /abs/worktree \
+efo-orchestrate --cwd /abs/worktree \
   --max-workers 8 --max-writers 2 --max-nodes 24 <<'BRIEF'
 ...
 BRIEF
@@ -60,14 +62,14 @@ A worked example, including worker briefs and how to read the result, is in
 ## Evidence
 
 The launcher prints one compact JSON object and writes everything under a
-unique job directory (default `$HOME/.prime/orchestration-runs/`, override with
-`PRIME_ORCHESTRATION_RUN_ROOT` or `--job-dir`):
+unique job directory (default `$HOME/.efo/orchestration-runs/`, override with
+`EFO_ORCHESTRATION_RUN_ROOT` or `--job-dir`):
 
 - `brief.md`, `contract.md`, `command.json`, `limits.json`, `session-id`
 - `claude-fable-stream.jsonl` / `-stderr.log`, and the `claude-opus-*` pair
   when the availability fallback runs — each attempt's evidence is named for
   the model that produced it
-- `.prime-slots/events.jsonl`, `.prime-slots/state.json`
+- `.efo-slots/events.jsonl`, `.efo-slots/state.json`
 - worker streams and artifacts
 - `final-raw.json`, `final.json`, `final-validation-errors.json`,
   `orchestration-metrics.json`, `meta.json`
@@ -78,7 +80,7 @@ unique job directory (default `$HOME/.prime/orchestration-runs/`, override with
 ## Resume
 
 ```bash
-prime-fable-orchestrate --cwd /abs/worktree \
+efo-orchestrate --cwd /abs/worktree \
   --resume "$(cat "$JOB/session-id")" <<'BRIEF'
 <distilled follow-up; do not replay the transcript>
 BRIEF
@@ -109,11 +111,12 @@ returns `blocked` — start a fresh run if a fallback attempt is appropriate.
   validation while retaining the CLI's own safety behavior. No bypass mode is
   offered.
 - Grok automation uses non-interactive approval **only** inside
-  `prime-grok-leg`, underneath a narrow profile and an explicit workspace
-  sandbox: an explicit space-separated `--cwd DIR` narrower than `/` and
-  `$HOME` is mandatory, adapter environment defaults are cleared, and
-  `--sandbox off` and `--profile full` are rejected. Understand this before
-  enabling Grok workers — see `docs/adapters.md`.
+  `efo-grok-leg`. The contract requires a narrow profile and workspace sandbox;
+  the in-repository layer requires an explicit space-separated `--cwd DIR`
+  that resolves to neither `/` nor `$HOME`, clears adapter environment
+  defaults, and rejects `--sandbox off` and `--profile full`. The user-supplied
+  `grok-leg` must enforce the actual profile and sandbox. Understand this
+  before enabling Grok workers — see `docs/adapters.md`.
 - Nested agent and workflow tools are disabled in the launcher so provider
   routing stays explicit through the adapters.
 - The child environment is allowlisted; provider API-key variables are not
@@ -126,15 +129,18 @@ returns `blocked` — start a fresh run if a fallback attempt is appropriate.
   and surface the blocker. Never synthesize partial fan-in as complete.
 - A result claiming success while any validation item failed is deterministically
   downgraded and the run exits non-zero.
-- Every worker consumes the entitlement of its own provider account. Confirm
-  that automated, headless CLI use is permitted under your plan — that review
-  is yours, not this skill's. Nothing here avoids fees, evades limits, or grants
-  entitlements you do not have.
+- This project drives official, authenticated vendor CLIs using an entitlement
+  already granted to the user. It ships no credentials and is not a proxy or
+  relay. Automated, headless, or non-interactive invocation may be restricted
+  or prohibited depending on the provider and specific plan. The operator must
+  verify the applicable terms; silence in provider documentation is not
+  permission. See `docs/provider-terms-review.md` for a good-faith engineering
+  review, not legal advice. Provider terms win if they conflict with this skill.
 
 ## Independence
 
 This is an independent community integration, not affiliated with or endorsed
-by Prime Intellect, Anthropic, OpenAI, or xAI. See `ATTRIBUTION.md`.
+by Anthropic, OpenAI, or xAI. See `ATTRIBUTION.md`.
 
 Run `tests/run-tests.sh` as the deterministic, offline validation gate after
 changing this skill.

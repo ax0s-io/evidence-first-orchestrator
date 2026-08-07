@@ -4,44 +4,44 @@ Three processes, one job directory, and a validation gate that does not trust
 the model it just ran.
 
 ```
-prime-fable-orchestrate  (launcher)
+efo-orchestrate  (launcher)
 │  creates the job dir, writes brief/contract/schema/limits,
 │  spawns ONE Claude Code session, supervises it, validates the result
 │
 ├── claude -p ... --json-schema ... --append-system-prompt <contract>
 │   │  the orchestrator session; brief arrives on stdin
 │   │
-│   ├── prime-codex-leg --lane reader|writer -- <codex-leg args>
-│   └── prime-grok-leg  --lane reader|writer  --cwd DIR ...
+│   ├── efo-codex-leg --lane reader|writer -- <codex-leg args>
+│   └── efo-grok-leg  --lane reader|writer  --cwd DIR ...
 │         │  adapter: validates lane + argument shape, then
-│         └── prime_slot_controller.py run --vendor V --lane L -- <adapter>
-│               │  blocks until a slot is free; logs queued/started/finished
+│         └── efo_slot_controller.py run --vendor V --lane L -- <adapter>
+│               │  blocks until a slot is available; logs queued/started/finished
 │               └── codex-leg | grok-leg   (external, yours)
 │
-└── prime_metrics.py — reduces slot events into run metrics
+└── efo_metrics.py — reduces slot events into run metrics
 ```
 
 ## Components
 
-**`scripts/prime_fable_orchestrate.py` — the launcher.** Owns the job
+**`scripts/efo_orchestrate.py` — the launcher.** Owns the job
 directory, argument and cap validation, adapter resolution, the narrowed child
 environment, the supervision loop (stall + wall-clock, process-group kill), the
 fallback state machine, result validation and normalization, and the final
 `meta.json`.
 
-**`scripts/prime_slot_controller.py` — the cap enforcer.** A separate process
-per worker. Takes a file lock over `.prime-slots/state.json`, waits until the
+**`scripts/efo_slot_controller.py` — the cap enforcer.** A separate process
+per worker. Takes a file lock over `.efo-slots/state.json`, waits until the
 worker's lane has room, records `started`, execs the adapter as a process-group
 leader, then records `finished` and releases. Because the cap lives in a lock
 file held by a process outside the model's control, no prompt can raise it.
 
-**`scripts/prime_codex_leg.sh`, `scripts/prime_grok_leg.sh` — the adapters.**
+**`scripts/efo_codex_leg.sh`, `scripts/efo_grok_leg.sh` — the adapters.**
 Thin argument-validating shims. They strip `--lane`, verify the job directory,
 reject argument shapes that would escape the intended sandbox, and forward
 everything else verbatim to the external `*-leg` program through the slot
 controller. See [adapters.md](adapters.md).
 
-**`scripts/prime_metrics.py` — the reducer.** Turns the slot event log into
+**`scripts/efo_metrics.py` — the reducer.** Turns the slot event log into
 node counts, peak concurrency (total and writers), and queue-wait statistics.
 It reports `degraded` when the event log is torn or internally inconsistent,
 and a degraded reduction is itself a validation error.
@@ -64,12 +64,14 @@ Three orthogonal limits, all enforced in the slot controller:
 `--max-workers 4 --max-nodes 24` may execute 24 workers, never more than 4 at
 once. `--max-writers 0` makes writer lanes impossible while readers still run.
 
-Lane semantics: a **reader** may not request a writable sandbox (the adapter
-refuses), so read-only scouting can be widened cheaply. A **writer** may edit
-files, which is why its cap is separate and low — concurrent writers on
-overlapping files is the failure mode that actually destroys work. The contract
-additionally requires concurrent workers to own disjoint file sets, with shared
-config and the central validator reserved to the orchestrator.
+Lane semantics: the in-repository adapter rejects recognized writable modes
+when a **reader** requests them. The user-supplied external adapter and vendor
+CLI must enforce the sandbox itself; the lane label is not filesystem
+confinement. A **writer** may edit files, which is why its cap is separate and
+low — concurrent writers on overlapping files is the failure mode that
+actually destroys work. The contract additionally requires concurrent workers
+to own disjoint file sets, with shared config and the central validator
+reserved to the orchestrator.
 
 Failure behavior is closed, not open: corrupt or unreadable slot state refuses
 new starts rather than assuming zero. Stale holders — recorded holders whose
@@ -79,7 +81,7 @@ job, but a live holder is never pruned.
 ## The job directory
 
 Created `0700`, must not already exist, and is the only place workers may write
-evidence. It is passed to the orchestrator as `$PRIME_ORCHESTRATION_JOB_DIR`
+evidence. It is passed to the orchestrator as `$EFO_ORCHESTRATION_JOB_DIR`
 and via `--add-dir`.
 
 | File | Contents |
@@ -91,8 +93,8 @@ and via `--add-dir`.
 | `command.json` | Redacted argv, exported env, fallback policy, per-attempt records |
 | `session-id` | Session id, for `--resume` |
 | `claude-<model>-stream.jsonl` / `-stderr.log` | One pair per attempt, byte-for-byte, named for the model that ran — `claude-fable-*` for the default primary, `claude-opus-*` for the default fallback |
-| `.prime-slots/state.json` | Live cap state |
-| `.prime-slots/events.jsonl` | Append-only slot lifecycle log |
+| `.efo-slots/state.json` | Live cap state |
+| `.efo-slots/events.jsonl` | Append-only slot lifecycle log |
 | *worker streams/artifacts* | Written by the orchestrator, one path per worker |
 | `final-raw.json` | The model's result exactly as claimed |
 | `final.json` | The **normalized** result — what consumers should read |
@@ -164,9 +166,9 @@ patterns. An ordinary task failure never retries.
 
 Before retrying, it must **prove the first attempt had no side effects**:
 
-1. `.prime-slots/state.json` parses, has the expected shape, records
+1. `.efo-slots/state.json` parses, has the expected shape, records
    `nodes_started == 0`, and holds no holders.
-2. `.prime-slots/events.jsonl` parses fully and contains no `started` event.
+2. `.efo-slots/events.jsonl` parses fully and contains no `started` event.
 3. The entire first-attempt stream parses, and every tool use in it is `Read`,
    `Glob`, or `Grep`.
 

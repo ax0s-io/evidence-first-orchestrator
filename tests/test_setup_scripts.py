@@ -16,28 +16,28 @@ import unittest
 
 SKILL_DIR = Path(__file__).resolve().parents[1]
 SCRIPTS = SKILL_DIR / "scripts"
-PREFLIGHT = SCRIPTS / "prime_preflight.py"
+PREFLIGHT = SCRIPTS / "efo_preflight.py"
 INSTALL = SCRIPTS / "install.sh"
 
 INSTALLED_NAMES = (
-    "prime-fable-orchestrate",
-    "prime-codex-leg",
-    "prime-grok-leg",
-    "prime-preflight",
+    "efo-orchestrate",
+    "efo-codex-leg",
+    "efo-grok-leg",
+    "efo-preflight",
 )
 LINK_TARGETS = {
-    "prime-fable-orchestrate": SCRIPTS / "prime_fable_orchestrate.py",
-    "prime-codex-leg": SCRIPTS / "prime_codex_leg.sh",
-    "prime-grok-leg": SCRIPTS / "prime_grok_leg.sh",
-    "prime-preflight": SCRIPTS / "prime_preflight.py",
+    "efo-orchestrate": SCRIPTS / "efo_orchestrate.py",
+    "efo-codex-leg": SCRIPTS / "efo_codex_leg.sh",
+    "efo-grok-leg": SCRIPTS / "efo_grok_leg.sh",
+    "efo-preflight": SCRIPTS / "efo_preflight.py",
 }
-# Every PRIME_* override that would otherwise leak in from the caller.
+# Every EFO_* override that would otherwise leak in from the caller.
 OVERRIDES = (
-    "PRIME_CLAUDE_BIN",
-    "PRIME_CODEX_LEG_BIN",
-    "PRIME_GROK_LEG_BIN",
-    "PRIME_GROK_BIN",
-    "PRIME_ORCHESTRATION_RUN_ROOT",
+    "EFO_CLAUDE_BIN",
+    "EFO_CODEX_LEG_BIN",
+    "EFO_GROK_LEG_BIN",
+    "EFO_GROK_BIN",
+    "EFO_ORCHESTRATION_RUN_ROOT",
     "XDG_BIN_HOME",
 )
 
@@ -48,6 +48,10 @@ def isolated_env(home: Path) -> dict[str, str]:
         env.pop(name, None)
     env["HOME"] = str(home)
     env["PATH"] = "/usr/bin:/bin"
+    # Preflight refuses to pass until the operator acknowledges the provider-terms
+    # review. Every test below is about some *other* check, so acknowledge here and
+    # let ProviderTermsGateTests own the gate itself.
+    env["EFO_PROVIDER_TERMS_ACK"] = "1"
     return env
 
 
@@ -58,6 +62,69 @@ def install(prefix: Path, *flags: str, env: dict[str, str] | None = None):
         text=True,
         env=env,
     )
+
+
+class ProviderTermsGateTests(unittest.TestCase):
+    """Automating a vendor CLI is governed by that vendor's terms and the
+    operator's plan, and docs/provider-terms-review.md could not affirmatively
+    clear consumer-subscription automation. Preflight cannot detect which plan is
+    in use, so it fails closed until the operator acknowledges having checked.
+    """
+
+    def run_preflight(self, env: dict[str, str]):
+        return subprocess.run(
+            [sys.executable, str(PREFLIGHT), "--json"],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=30,
+        )
+
+    def working_env(self, home: Path) -> dict[str, str]:
+        claude = home / ".local" / "bin" / "claude"
+        claude.parent.mkdir(parents=True)
+        claude.write_text("#!/bin/sh\nexit 0\n")
+        claude.chmod(0o755)
+        return isolated_env(home)
+
+    def test_unacknowledged_provider_terms_fail_preflight(self):
+        with tempfile.TemporaryDirectory() as td:
+            env = self.working_env(Path(td))
+            env.pop("EFO_PROVIDER_TERMS_ACK", None)
+
+            result = self.run_preflight(env)
+
+            self.assertEqual(result.returncode, 1, result.stderr)
+            report = json.loads(result.stdout)
+            self.assertEqual(report["status"], "failed")
+            check = {c["name"]: c for c in report["checks"]}["provider-terms"]
+            self.assertFalse(check["ok"])
+            self.assertTrue(check["required"])
+            self.assertIn("provider-terms-review.md", check["remediation"])
+
+    def test_acknowledgement_must_be_exactly_one(self):
+        """A truthy-looking value is not an acknowledgement; only "1" is."""
+        for value in ("", "0", "yes", "true", "TRUE"):
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as td:
+                env = self.working_env(Path(td))
+                env["EFO_PROVIDER_TERMS_ACK"] = value
+
+                report = json.loads(self.run_preflight(env).stdout)
+
+                check = {c["name"]: c for c in report["checks"]}["provider-terms"]
+                self.assertFalse(check["ok"], f"{value!r} must not acknowledge")
+
+    def test_acknowledgement_lets_an_otherwise_healthy_host_pass(self):
+        with tempfile.TemporaryDirectory() as td:
+            env = self.working_env(Path(td))
+
+            result = self.run_preflight(env)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = json.loads(result.stdout)
+            self.assertEqual(report["status"], "ok")
+            check = {c["name"]: c for c in report["checks"]}["provider-terms"]
+            self.assertTrue(check["ok"])
 
 
 class PreflightTests(unittest.TestCase):
@@ -81,7 +148,7 @@ class PreflightTests(unittest.TestCase):
             checks = {check["name"]: check for check in report["checks"]}
             self.assertFalse(checks["claude"]["ok"])
             self.assertTrue(checks["claude"]["required"])
-            self.assertIn("PRIME_CLAUDE_BIN", checks["claude"]["remediation"])
+            self.assertIn("EFO_CLAUDE_BIN", checks["claude"]["remediation"])
 
     def test_missing_optional_adapters_are_capability_gaps_not_failures(self):
         with tempfile.TemporaryDirectory() as td:
@@ -125,14 +192,14 @@ class PreflightTests(unittest.TestCase):
             claude.write_text("#!/bin/sh\nexit 0\n")
             claude.chmod(0o755)
             env = isolated_env(home)
-            env["PRIME_CLAUDE_BIN"] = str(home / "nonexistent")
+            env["EFO_CLAUDE_BIN"] = str(home / "nonexistent")
 
             result = self.run_preflight(home, "--json", env=env)
 
             self.assertEqual(result.returncode, 1, result.stderr)
             checks = {c["name"]: c for c in json.loads(result.stdout)["checks"]}
             self.assertFalse(checks["claude"]["ok"])
-            self.assertIn("PRIME_CLAUDE_BIN", checks["claude"]["detail"])
+            self.assertIn("EFO_CLAUDE_BIN", checks["claude"]["detail"])
 
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as td:
@@ -181,7 +248,7 @@ class InstallTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             prefix = Path(td) / "bin"
             prefix.mkdir()
-            occupied = prefix / "prime-preflight"
+            occupied = prefix / "efo-preflight"
             occupied.write_text("do not delete me\n")
 
             result = install(prefix)
@@ -190,7 +257,7 @@ class InstallTests(unittest.TestCase):
             self.assertIn("refusing to clobber", result.stderr)
             self.assertEqual(occupied.read_text(), "do not delete me\n")
             # Validation happens before any mutation: no partial install.
-            self.assertEqual([path.name for path in prefix.iterdir()], ["prime-preflight"])
+            self.assertEqual([path.name for path in prefix.iterdir()], ["efo-preflight"])
 
             forced = install(prefix, "--force")
             self.assertEqual(forced.returncode, 0, forced.stderr)
@@ -200,7 +267,7 @@ class InstallTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             prefix = Path(td) / "bin"
             self.assertEqual(install(prefix).returncode, 0)
-            foreign = prefix / "prime-grok-leg"
+            foreign = prefix / "efo-grok-leg"
             foreign.unlink()
             foreign.symlink_to(Path(td))
 

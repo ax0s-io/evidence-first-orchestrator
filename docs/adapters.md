@@ -1,16 +1,18 @@
 # External adapter contracts
 
-This project **calls** three external programs. It does not bundle, vendor, or
-redistribute any of them. If one is missing, the corresponding capability fails
-closed with an actionable diagnostic — it never silently degrades, never falls
-back to a raw vendor binary, and never substitutes an API-key code path.
+This is an **interface specification** for the external programs the project
+calls. The repository does not bundle, vendor, or redistribute another
+project's wrapper implementation. You supply and maintain `codex-leg` and
+`grok-leg` yourself. If a program is missing, the corresponding capability
+fails closed with an actionable diagnostic — it never silently falls back to a
+raw vendor binary or substitutes an API-key code path.
 
 | Adapter | Env override | Name looked up | Needed for |
 | --- | --- | --- | --- |
-| Claude Code CLI | `PRIME_CLAUDE_BIN` | `claude` | Always — it runs the orchestrator session |
-| Codex leg wrapper | `PRIME_CODEX_LEG_BIN` | `codex-leg` | Codex workers only |
-| Grok leg wrapper | `PRIME_GROK_LEG_BIN` | `grok-leg` | Grok workers only |
-| Grok CLI | `PRIME_GROK_BIN` | `grok` | Grok workers only (invoked *through* `grok-leg`) |
+| Claude Code CLI | `EFO_CLAUDE_BIN` | `claude` | Always — it runs the orchestrator session |
+| Codex leg wrapper | `EFO_CODEX_LEG_BIN` | `codex-leg` | Codex workers only |
+| Grok leg wrapper | `EFO_GROK_LEG_BIN` | `grok-leg` | Grok workers only |
+| Grok CLI | `EFO_GROK_BIN` | `grok` | Grok workers only (invoked *through* `grok-leg`) |
 
 Resolution rule, applied identically everywhere:
 
@@ -26,11 +28,17 @@ Resolution rule, applied identically everywhere:
 4. If nothing resolves, the caller exits non-zero with a message naming the
    variable, the searched name, and what to install.
 
-The launcher owns this rule; `scripts/prime_resolve_bin.sh` and
-`scripts/prime_preflight.py` call into it rather than reimplementing it, so
+The launcher owns this rule; `scripts/efo_resolve_bin.sh` and
+`scripts/efo_preflight.py` call into it rather than reimplementing it, so
 every entry point resolves the same binary.
 
-Run `scripts/prime_preflight.py` to see exactly what resolves on your machine.
+Run `scripts/efo_preflight.py` to see exactly what resolves on your machine.
+
+If an adapter drives a consumer-subscription CLI, clearing automated,
+headless, and non-interactive use against that provider's specific plan terms
+is the operator's responsibility. Silence in provider documentation is not
+permission. See [provider-terms-review.md](provider-terms-review.md); it is a
+good-faith engineering review, not legal advice, and provider terms win.
 
 ---
 
@@ -45,15 +53,15 @@ This repository adds a **slot-controlled layer on top**:
 
 ```
 orchestrator
-  └─ prime-codex-leg --lane reader|writer   (this repo)
-       └─ prime_slot_controller.py run …    (this repo — caps + lifecycle events)
+  └─ efo-codex-leg --lane reader|writer   (this repo)
+       └─ efo_slot_controller.py run …    (this repo — caps + lifecycle events)
             └─ codex-leg …                  (YOUR program — watchdog, sandbox, stream)
                  └─ codex …                 (vendor CLI)
 ```
 
-`prime-codex-leg` / `prime-grok-leg` validate the lane, verify the job
+`efo-codex-leg` / `efo-grok-leg` validate the lane, verify the job
 directory, reject argument shapes that would defeat the sandbox, and then hand
-off to the slot controller, which blocks until a slot is free and records
+off to the slot controller, which blocks until a slot is available and records
 `queued` / `started` / `finished` events. The cap is therefore enforced by a
 process the orchestrator cannot talk its way past.
 
@@ -70,7 +78,7 @@ rejected.
 **Role.** Headless, one-shot, non-interactive execution of a brief against the
 OpenAI Codex CLI, with a stall watchdog and a JSONL event stream.
 
-**Invocation.** `prime-codex-leg` consumes and strips its own `--lane` flag and
+**Invocation.** `efo-codex-leg` consumes and strips its own `--lane` flag and
 forwards everything else verbatim, in order:
 
 ```
@@ -98,11 +106,11 @@ forwards everything else verbatim, in order:
 - Do not accept a brief on argv — process listings are visible to other
   processes of the same user.
 
-**Enforced by `prime-codex-leg` before it forwards anything:**
+**Enforced by `efo-codex-leg` before it forwards anything:**
 
 - `--lane reader|writer` exactly once, space-separated (`--lane=writer` is
   rejected so the parse cannot be ambiguous).
-- `PRIME_ORCHESTRATION_JOB_DIR` set and an existing directory.
+- `EFO_ORCHESTRATION_JOB_DIR` set and an existing directory.
 - Any sandbox mode other than `read-only` requires `--lane writer`. A reader
   cannot obtain write access by argument shape.
 
@@ -124,12 +132,13 @@ the path to the underlying Grok CLI (this project sets it to a small shim).
 | `write` | bounded edits | **writer only** |
 | `full` | unrestricted | **rejected** |
 
-**Enforced by `prime-grok-leg` before it forwards anything:**
+**Enforced by `efo-grok-leg` before it forwards anything:**
 
 - `--lane reader|writer` exactly once.
-- `PRIME_ORCHESTRATION_JOB_DIR` set and an existing directory.
+- `EFO_ORCHESTRATION_JOB_DIR` set and an existing directory.
 - An explicit space-separated `--cwd DIR` is **mandatory**; it must exist and
-  resolve to something strictly narrower than `/` and than `$HOME`.
+  resolve to neither `/` nor `$HOME`. The in-repository check does not require
+  it to be a descendant of `$HOME` or otherwise prove that it is narrow.
 - `--sandbox off` is rejected.
 - `--profile full` is rejected.
 - `--profile write` requires `--lane writer`.
@@ -139,15 +148,19 @@ the path to the underlying Grok CLI (this project sets it to a small shim).
 
 ### The approval shim
 
-`scripts/grok_always_approve_shim.sh` is a three-line shim that inserts the
+`scripts/grok_always_approve_shim.sh` is a small shim that inserts the
 Grok CLI's non-interactive approval flag plus a small deny list. It exists
 because a headless run cannot answer an approval prompt.
 
 **Understand what you are enabling.** Non-interactive approval means the model
-may run tools without asking. That is only acceptable because it sits *under*
-the sandbox, profile, and `--cwd` restrictions above — the shim widens
-approval, not authority. If your `grok-leg` cannot enforce those restrictions,
-do not use this shim. This is your decision to make, per run and per machine.
+may run allowed tools without asking. The deny list is narrow and is not a
+general command filter or a security boundary. The in-repository layer rejects
+known escape values and requires a non-root, non-home `--cwd`, but the
+user-supplied `grok-leg` and vendor CLI must enforce the actual sandbox and
+profile. A hostile or mistaken model can still cause harm within that
+authority. Enabling this path is the operator's deliberate decision for each
+machine and run. If your `grok-leg` cannot enforce those restrictions, do not
+use the shim.
 
 ## Contract: `claude`
 
@@ -162,7 +175,7 @@ either `--session-id` or `--resume`. The brief is delivered on **stdin**.
 The child process receives a **narrow allowlisted environment**. Provider
 API-key variables are deliberately not forwarded, so a worker cannot quietly
 switch from your authenticated CLI session to a metered API code path. The
-`PRIME_*` adapter overrides *are* forwarded, so wrappers spawned by the
+`EFO_*` adapter overrides *are* forwarded, so wrappers spawned by the
 orchestrator resolve the same binaries the launcher checked at preflight.
 
 ---

@@ -8,9 +8,9 @@ in both layers.
 
 ## Mandatory routing
 
-- Dispatch Codex workers **only** through `prime-codex-leg`, with a required
+- Dispatch Codex workers **only** through `efo-codex-leg`, with a required
   `--lane reader|writer`.
-- Dispatch Grok workers **only** through `prime-grok-leg`, with a required
+- Dispatch Grok workers **only** through `efo-grok-leg`, with a required
   `--lane reader|writer`. It layers headless approval over the external
   `grok-leg` adapter while preserving that adapter's profiles, sandboxing, tool
   denials, streaming evidence, and stall supervision.
@@ -65,7 +65,7 @@ in both layers.
 
 - Use the narrowest working directory and sandbox that can complete the task.
 - Write every worker stream, final message, and useful artifact under
-  `$PRIME_ORCHESTRATION_JOB_DIR`, with a unique path per worker.
+  `$EFO_ORCHESTRATION_JOB_DIR`, with a unique path per worker.
 - Declare every worker's lane. One stream path per worker. For Codex, pass
   `-o/--output-last-message` to a unique job-directory artifact whenever the
   final message is a downstream input; do not rely on wrapper stdout. For Grok,
@@ -122,18 +122,18 @@ instead.
 ## Invocation shapes
 
 ```bash
-prime-codex-leg --lane writer \
-  --stream "$PRIME_ORCHESTRATION_JOB_DIR/codex-impl-01.jsonl" --stall-s 900 -- \
+efo-codex-leg --lane writer \
+  --stream "$EFO_ORCHESTRATION_JOB_DIR/codex-impl-01.jsonl" --stall-s 900 -- \
   -c model_reasoning_effort=high -s workspace-write -C /abs/worktree \
-  -o "$PRIME_ORCHESTRATION_JOB_DIR/codex-impl-01.final.txt" <<'EOF'
+  -o "$EFO_ORCHESTRATION_JOB_DIR/codex-impl-01.final.txt" <<'EOF'
 <self-contained brief>
 EOF
 ```
 
 ```bash
-prime-grok-leg --lane reader --profile scout --effort low \
+efo-grok-leg --lane reader --profile scout --effort low \
   --cwd /abs/worktree \
-  --stream "$PRIME_ORCHESTRATION_JOB_DIR/grok-verify-01.json" <<'EOF'
+  --stream "$EFO_ORCHESTRATION_JOB_DIR/grok-verify-01.json" <<'EOF'
 <self-contained brief>
 EOF
 ```

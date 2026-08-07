@@ -5,7 +5,7 @@
 | Requirement | Notes |
 | --- | --- |
 | Python 3.10+ | Uses PEP 604 unions; no third-party packages |
-| Bash 4+ | The adapters use arrays and `[[ ]]`; they must not be run as `sh` |
+| Bash 3.2+ | Bash 4+ is preferred; macOS Bash 3.2 is supported. The adapters must not be run as `sh` |
 | A POSIX system | Needs `fcntl.flock` and process groups. Linux and macOS are supported; Windows is not (WSL works) |
 | Claude Code CLI | Authenticated the way you normally authenticate it |
 | `codex-leg` | Only for Codex workers — an external program you supply, see [adapters.md](adapters.md) |
@@ -14,19 +14,52 @@
 No package installation, no network access, and no credentials are required by
 this repository itself.
 
-## 2. Preflight
-
-Run this before anything else. It resolves every tool, checks the run root, and
-tells you exactly what is missing and how to fix it.
+Obtain the working tree and enter its root before running the commands below:
 
 ```bash
-./scripts/prime_preflight.py
-./scripts/prime_preflight.py --json     # machine-readable
+git clone https://github.com/ax0s-io/evidence-first-orchestrator.git
+cd evidence-first-orchestrator
 ```
 
-`claude` is **required**. `codex-leg`, `grok-leg`, and `grok` are **optional**:
-if one is missing, preflight still succeeds and reports which worker vendor is
-unavailable. Exit status is 0 only when every required check passes.
+Install and authenticate each official vendor CLI under the terms of the plan
+you intend to use. This repository does not install those CLIs or authenticate
+provider accounts. Supply `codex-leg` or `grok-leg` only if you want the
+corresponding worker type; their interface is documented in
+[adapters.md](adapters.md).
+
+## 2. Preflight
+
+Run this before anything else. It resolves every tool, checks the run root and
+the platform, requires the provider-terms acknowledgement, and tells you exactly
+what is missing and how to fix it.
+
+```bash
+./scripts/efo_preflight.py
+./scripts/efo_preflight.py --json     # machine-readable
+```
+
+Required checks: `provider-terms`, `python`, `claude`, `run root`, `platform`,
+`bash`. `codex-leg`, `grok-leg`, and `grok` are **optional**: if one is missing,
+preflight still succeeds and reports which worker vendor is unavailable. Exit
+status is 0 only when every required check passes.
+
+### The provider-terms check
+
+`provider-terms` fails until you set `EFO_PROVIDER_TERMS_ACK=1`:
+
+```bash
+EFO_PROVIDER_TERMS_ACK=1 ./scripts/efo_preflight.py
+```
+
+Read [provider-terms-review.md](provider-terms-review.md) first. That review
+could not affirmatively clear automated invocation of a consumer-subscription-
+authenticated CLI for any supported vendor, so whether this tool may drive your
+CLI depends on your own plan and your own reading of your provider's terms.
+
+The check records **your acknowledgement, not compliance**. This project cannot
+see which plan or authentication method a CLI is using, so it cannot verify
+anything — it only refuses to be set up silently. Export the variable in your
+shell profile once you have made that determination.
 
 ## 3. Install
 
@@ -37,16 +70,28 @@ unavailable. Exit status is 0 only when every required check passes.
 ./scripts/install.sh --uninstall
 ```
 
-It creates four symlinks — `prime-fable-orchestrate`, `prime-codex-leg`,
-`prime-grok-leg`, `prime-preflight` — and makes the linked scripts executable.
+It creates four symlinks — `efo-orchestrate`, `efo-codex-leg`,
+`efo-grok-leg`, `efo-preflight` — and makes the linked scripts executable.
 It refuses to clobber an existing real file or a symlink pointing outside this
 repository unless you pass `--force`, warns if the prefix is not on `PATH`, and
 does not touch your shell profile, install packages, or reach the network.
 
-You can skip installation entirely and call `scripts/prime_fable_orchestrate.py`
-by path — but the adapters must be reachable *by name* (`prime-codex-leg`,
-`prime-grok-leg`) from the orchestrator's `PATH`, because that is how the
+You can skip installation entirely and call `scripts/efo_orchestrate.py`
+by path — but the adapters must be reachable *by name* (`efo-codex-leg`,
+`efo-grok-leg`) from the orchestrator's `PATH`, because that is how the
 orchestrator is instructed to invoke them.
+
+The root [VERSION](../VERSION) file is the release version source. Each
+installed entry point reports it without starting a model or worker:
+
+```bash
+efo-orchestrate --version
+efo-preflight --version
+efo-codex-leg --version
+efo-grok-leg --version
+```
+
+For this release each command prints `evidence-first-orchestrator 0.1.0`.
 
 ## 4. Configuration
 
@@ -57,10 +102,10 @@ there are no hardcoded absolute paths.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `PRIME_CLAUDE_BIN` | `claude` by name | Claude Code CLI |
-| `PRIME_CODEX_LEG_BIN` | `codex-leg` by name | Codex adapter |
-| `PRIME_GROK_LEG_BIN` | `grok-leg` by name | Grok adapter |
-| `PRIME_GROK_BIN` | `grok` by name | Grok CLI, used by the approval shim |
+| `EFO_CLAUDE_BIN` | `claude` by name | Claude Code CLI |
+| `EFO_CODEX_LEG_BIN` | `codex-leg` by name | Codex adapter |
+| `EFO_GROK_LEG_BIN` | `grok-leg` by name | Grok adapter |
+| `EFO_GROK_BIN` | `grok` by name | Grok CLI, used by the approval shim |
 
 "By name" means the user bin directory (`$XDG_BIN_HOME`, or `$HOME/.local/bin`
 when unset — the directory `install.sh` links into) is searched first, then
@@ -77,20 +122,21 @@ anyone-can-replace-this directories are).
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `PRIME_ORCHESTRATION_RUN_ROOT` | `$HOME/.prime/orchestration-runs` | Where job directories are created |
-| `PRIME_PRIMARY_MODEL` | `claude-fable-5` | Orchestrator model (also `--model`) |
-| `PRIME_FALLBACK_MODEL` | `claude-opus-5` | Availability fallback (also `--fallback-model`) |
+| `EFO_PROVIDER_TERMS_ACK` | unset | Must be exactly `1` for preflight to pass; see [the provider-terms check](#the-provider-terms-check) |
+| `EFO_ORCHESTRATION_RUN_ROOT` | `$HOME/.efo/orchestration-runs` | Where job directories are created |
+| `EFO_PRIMARY_MODEL` | `claude-fable-5` | Orchestrator model (also `--model`) |
+| `EFO_FALLBACK_MODEL` | `claude-opus-5` | Availability fallback (also `--fallback-model`) |
 
 ### Set by the launcher for its children — do not set these yourself
 
-`PRIME_ORCHESTRATION_JOB_DIR`, `PRIME_MAX_WORKERS`, `PRIME_MAX_WRITERS`,
-`PRIME_MAX_NODES`.
+`EFO_ORCHESTRATION_JOB_DIR`, `EFO_MAX_WORKERS`, `EFO_MAX_WRITERS`,
+`EFO_MAX_NODES`.
 
 ### Environment narrowing
 
 The orchestrator child receives an **allowlisted** environment: standard shell
 and locale variables, `PATH` as you provided it, the job/cap variables above,
-and the `PRIME_*` tool overrides (so wrappers it spawns resolve the same
+and the `EFO_*` tool overrides (so wrappers it spawns resolve the same
 binaries preflight checked). Provider API-key variables are deliberately **not**
 forwarded — a worker should not be able to switch from your authenticated CLI
 session to a metered API path without you asking for it.
@@ -113,15 +159,16 @@ session to a metered API path without you asking for it.
 | `--dry-run` | off | Create the job dir and print the redacted command; run nothing |
 
 Start with `--dry-run` on a new machine: it exercises argument validation,
-adapter resolution, and job-directory creation without spending anything.
+launcher resolution, and job-directory creation without starting a model.
 
-## 6. Prime Agent skill installation
+## 6. Agent skill installation
 
-[SKILL.md](../SKILL.md) is the skill definition. Place this repository where
-your Prime Agent installation looks for skills, or symlink it there, then make
-sure the four commands above are on the agent's `PATH`. The skill is a thin
-wrapper: it tells the agent when to reach for the launcher and how to read the
-evidence afterward.
+[SKILL.md](../SKILL.md) is an agent skill definition. If your supervising agent
+supports local skills, place or symlink this skill directory wherever that
+agent looks for them. Then ensure the four installed `efo-*` commands are on
+the agent process's `PATH`. The skill tells an agent when to invoke the launcher
+and how to inspect the evidence; it is not required for a human operator to run
+the launcher directly.
 
 ## 7. Verify
 
@@ -134,6 +181,10 @@ model or opens a socket.
 
 ## 8. Provider terms
 
-Confirm that automated, headless use of each vendor CLI is permitted under your
-plan before you run anything. That review is your responsibility. See
-[security.md](security.md#operator-responsibilities).
+Automated, headless, or non-interactive use may be restricted or prohibited by
+a provider or specific plan. Verify your own terms before running; silence in
+provider documentation is not permission. See the operator responsibilities in
+[security.md](security.md#operator-responsibilities) and the good-faith
+engineering review in
+[provider-terms-review.md](provider-terms-review.md), which is not legal advice.
+If provider terms conflict with this documentation, the provider terms win.

@@ -9,3 +9,6 @@ orchestration-runs/
 
 # Working notes handed to a build session. Local scratch, never publishable.
 FOLLOWUP_BRIEF.md
+
+# Task brief handed to a build session. Local scratch, never publishable.
+RELEASE_BRIEF.md

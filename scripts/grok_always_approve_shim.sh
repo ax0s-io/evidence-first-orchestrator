@@ -10,8 +10,8 @@ while [ -h "$source_path" ]; do
   if [[ "$link_target" = /* ]]; then source_path="$link_target"; else source_path="$source_dir/$link_target"; fi
 done
 script_dir="$(cd -P "$(dirname "$source_path")" && pwd)"
-source "$script_dir/prime_resolve_bin.sh"
-grok_bin="$(prime_resolve_bin grok PRIME_GROK_BIN grok-approve-shim grok)" || exit $?
+source "$script_dir/efo_resolve_bin.sh"
+grok_bin="$(efo_resolve_bin grok EFO_GROK_BIN grok-approve-shim grok)" || exit $?
 printf 'grok-approve-shim: resolved grok: %s\n' "$grok_bin" >&2
 exec "$grok_bin" \
   --always-approve \

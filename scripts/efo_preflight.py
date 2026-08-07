@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Report whether this host can launch Prime Fable orchestration jobs."""
+"""Report whether this host can launch evidence-first orchestration jobs."""
 from __future__ import annotations
 
 import argparse
@@ -16,8 +16,10 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+from efo_version import VERSION
+
 try:
-    from prime_fable_orchestrate import resolve_executable
+    from efo_orchestrate import resolve_executable
 except (Exception, SystemExit) as exc:  # Keep a broken local install diagnostic clean.
     resolve_executable = None  # type: ignore[assignment]
     RESOLVER_IMPORT_ERROR: str | None = str(exc) or exc.__class__.__name__
@@ -36,7 +38,12 @@ class ArgumentParser(argparse.ArgumentParser):
 
 
 def parse_args() -> argparse.Namespace:
-    parser = ArgumentParser(description="Check Prime Fable launcher prerequisites.")
+    parser = ArgumentParser(description="Check evidence-first launcher prerequisites.")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"evidence-first-orchestrator {VERSION}",
+    )
     parser.add_argument("--json", action="store_true", help="print one machine-readable JSON object")
     return parser.parse_args()
 
@@ -84,17 +91,17 @@ def adapter_check(
         else f"Install {name} or set {env_var} to an executable file; {unavailable}."
     )
     if resolve_executable is None:
-        detail = f"prime-preflight: launcher resolver could not be imported: {RESOLVER_IMPORT_ERROR}"
+        detail = f"efo-preflight: launcher resolver could not be imported: {RESOLVER_IMPORT_ERROR}"
         return make_check(name, required, False, detail, remediation)
     try:
-        resolved = resolve_executable(name, env_var, "prime-preflight")
+        resolved = resolve_executable(name, env_var, "efo-preflight")
     except SystemExit as exc:
         detail = str(exc)
         if not required:
             detail = f"{detail}; {unavailable}"
         return make_check(name, required, False, detail, remediation)
     except Exception as exc:
-        detail = f"prime-preflight: could not resolve {name}: {exc}"
+        detail = f"efo-preflight: could not resolve {name}: {exc}"
         if not required:
             detail = f"{detail}; {unavailable}"
         return make_check(name, required, False, detail, remediation)
@@ -102,12 +109,12 @@ def adapter_check(
 
 
 def run_root_check() -> Check:
-    configured = os.environ.get("PRIME_ORCHESTRATION_RUN_ROOT")
+    configured = os.environ.get("EFO_ORCHESTRATION_RUN_ROOT")
     try:
         root = (
             Path(configured).expanduser()
             if configured
-            else Path.home() / ".prime" / "orchestration-runs"
+            else Path.home() / ".efo" / "orchestration-runs"
         ).resolve()
         if root.exists():
             if not root.is_dir():
@@ -116,7 +123,7 @@ def run_root_check() -> Check:
                     True,
                     False,
                     f"{root} exists but is not a directory",
-                    "Set PRIME_ORCHESTRATION_RUN_ROOT to a writable directory.",
+                    "Set EFO_ORCHESTRATION_RUN_ROOT to a writable directory.",
                     root,
                 )
             writable = os.access(root, os.W_OK | os.X_OK)
@@ -127,7 +134,7 @@ def run_root_check() -> Check:
                 f"{root} exists and is writable" if writable else f"{root} is not writable",
                 None
                 if writable
-                else "Make the run root writable or set PRIME_ORCHESTRATION_RUN_ROOT to a writable directory.",
+                else "Make the run root writable or set EFO_ORCHESTRATION_RUN_ROOT to a writable directory.",
                 root,
             )
 
@@ -147,7 +154,7 @@ def run_root_check() -> Check:
             detail,
             None
             if writable
-            else "Make an ancestor writable or set PRIME_ORCHESTRATION_RUN_ROOT to a writable directory.",
+            else "Make an ancestor writable or set EFO_ORCHESTRATION_RUN_ROOT to a writable directory.",
             root,
         )
     except (OSError, RuntimeError) as exc:
@@ -155,8 +162,8 @@ def run_root_check() -> Check:
             "run root",
             True,
             False,
-            f"prime-preflight: could not inspect the run root: {exc}",
-            "Set PRIME_ORCHESTRATION_RUN_ROOT to a writable directory.",
+            f"efo-preflight: could not inspect the run root: {exc}",
+            "Set EFO_ORCHESTRATION_RUN_ROOT to a writable directory.",
         )
 
 
@@ -178,7 +185,7 @@ def bash_check(warnings: list[str]) -> Check:
             "bash",
             True,
             False,
-            "prime-preflight: bash not found on PATH",
+            "efo-preflight: bash not found on PATH",
             "Install bash and make it available on PATH.",
         )
     try:
@@ -215,14 +222,43 @@ def bash_check(warnings: list[str]) -> Check:
     return make_check("bash", True, True, f"bash {version}", resolved=resolved)
 
 
+def provider_terms_check() -> Check:
+    """Require the operator to acknowledge the provider-terms review.
+
+    Automating a vendor CLI is governed by that vendor's terms and by the
+    operator's specific plan. docs/provider-terms-review.md records that we could
+    not affirmatively clear automated, consumer-subscription-authenticated use of
+    any supported CLI. This project cannot detect which plan or authentication
+    method a CLI is using, so it cannot enforce compliance -- it can only refuse
+    to be set up silently. The gate is deliberately trivial to satisfy: its
+    purpose is informed consent, not obstruction.
+    """
+    acknowledged = os.environ.get("EFO_PROVIDER_TERMS_ACK", "") == "1"
+    return make_check(
+        "provider-terms",
+        True,
+        acknowledged,
+        (
+            "acknowledged via EFO_PROVIDER_TERMS_ACK=1"
+            if acknowledged
+            else "not acknowledged"
+        ),
+        remediation=(
+            "read docs/provider-terms-review.md, confirm your own plan's terms "
+            "permit automated CLI invocation, then set EFO_PROVIDER_TERMS_ACK=1"
+        ),
+    )
+
+
 def collect_report() -> dict[str, Any]:
     warnings: list[str] = []
     checks = [
+        provider_terms_check(),
         python_check(),
-        adapter_check("claude", "PRIME_CLAUDE_BIN", True, "orchestration unavailable"),
-        adapter_check("codex-leg", "PRIME_CODEX_LEG_BIN", False, "Codex workers unavailable"),
-        adapter_check("grok-leg", "PRIME_GROK_LEG_BIN", False, "Grok workers unavailable"),
-        adapter_check("grok", "PRIME_GROK_BIN", False, "Grok workers unavailable"),
+        adapter_check("claude", "EFO_CLAUDE_BIN", True, "orchestration unavailable"),
+        adapter_check("codex-leg", "EFO_CODEX_LEG_BIN", False, "Codex workers unavailable"),
+        adapter_check("grok-leg", "EFO_GROK_LEG_BIN", False, "Grok workers unavailable"),
+        adapter_check("grok", "EFO_GROK_BIN", False, "Grok workers unavailable"),
         run_root_check(),
         platform_check(),
         bash_check(warnings),
@@ -255,9 +291,9 @@ def print_human(report: dict[str, Any]) -> None:
         )
     for check in checks:
         if not check["ok"] and check["remediation"]:
-            print(f"prime-preflight: remediation for {check['name']}: {check['remediation']}")
+            print(f"efo-preflight: remediation for {check['name']}: {check['remediation']}")
     for warning in report["warnings"]:
-        print(f"prime-preflight: warning: {warning}")
+        print(f"efo-preflight: warning: {warning}")
     capabilities = report["capabilities"]
     print(
         "Capabilities: "
@@ -271,7 +307,7 @@ def main() -> int:
     try:
         args = parse_args()
     except ValueError as exc:
-        print(f"prime-preflight: {exc}", file=sys.stderr)
+        print(f"efo-preflight: {exc}", file=sys.stderr)
         return 1
     report = collect_report()
     if args.json:
@@ -292,12 +328,12 @@ if __name__ == "__main__":
                         "status": "failed",
                         "checks": [],
                         "capabilities": {"codex_workers": False, "grok_workers": False},
-                        "warnings": [f"prime-preflight: internal error: {exc}"],
+                        "warnings": [f"efo-preflight: internal error: {exc}"],
                     },
                     sort_keys=True,
                 )
             )
         else:
-            print(f"prime-preflight: internal error: {exc}", file=sys.stderr)
+            print(f"efo-preflight: internal error: {exc}", file=sys.stderr)
         exit_code = 1
     raise SystemExit(0 if exit_code == 0 else 1)

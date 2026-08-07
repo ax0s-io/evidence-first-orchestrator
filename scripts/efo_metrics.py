@@ -25,7 +25,7 @@ def build_metrics(job_dir, limits, run_info) -> dict:
         path_error = f"invalid job_dir: {type(exc).__name__}: {exc}"
     else:
         path_error = None
-    events_path = os.path.join(absolute_job, ".prime-slots", "events.jsonl")
+    events_path = os.path.join(absolute_job, ".efo-slots", "events.jsonl")
     safe_limits = {
         "max_workers": limits.get("max_workers", 4) if isinstance(limits, dict) else 4,
         "max_writers": limits.get("max_writers", 2) if isinstance(limits, dict) else 2,

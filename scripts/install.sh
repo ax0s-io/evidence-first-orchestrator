@@ -9,7 +9,7 @@ usage() {
   cat <<'EOF'
 Usage: install.sh [--prefix DIR] [--dry-run] [--uninstall] [--force]
 
-Create or remove the Prime Fable launcher symlinks.
+Create or remove the evidence-first orchestrator symlinks.
 
 Options:
   --prefix DIR  Install into DIR (default: ${XDG_BIN_HOME:-$HOME/.local/bin})
@@ -76,16 +76,16 @@ done
 script_dir="$(cd -P "$(dirname "$source_path")" && pwd)"
 
 names=(
-  prime-fable-orchestrate
-  prime-codex-leg
-  prime-grok-leg
-  prime-preflight
+  efo-orchestrate
+  efo-codex-leg
+  efo-grok-leg
+  efo-preflight
 )
 targets=(
-  "$script_dir/prime_fable_orchestrate.py"
-  "$script_dir/prime_codex_leg.sh"
-  "$script_dir/prime_grok_leg.sh"
-  "$script_dir/prime_preflight.py"
+  "$script_dir/efo_orchestrate.py"
+  "$script_dir/efo_codex_leg.sh"
+  "$script_dir/efo_grok_leg.sh"
+  "$script_dir/efo_preflight.py"
 )
 
 resolved_link_target() {

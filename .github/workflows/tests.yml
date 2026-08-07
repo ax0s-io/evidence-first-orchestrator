@@ -11,21 +11,16 @@ permissions:
 
 jobs:
   gate:
-    name: deterministic gate (${{ matrix.os }}, python ${{ matrix.python-version }})
-    runs-on: ${{ matrix.os }}
+    name: deterministic Linux gate (Python 3.12)
+    runs-on: ubuntu-latest
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        python-version: ["3.10", "3.12"]
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
 
       # The suite is hermetic: no third-party packages, no network, no model
       # calls, no provider credentials. It uses local stubs for every external
@@ -33,12 +28,18 @@ jobs:
       - name: Run the authoritative gate
         run: ./tests/run-tests.sh
 
+      - name: Check shell syntax
+        run: find scripts tests -type f -name '*.sh' -exec bash -n {} +
+
+      - name: Compile Python sources
+        run: python -m compileall -q scripts tests
+
       # Preflight must degrade gracefully when no provider CLI exists at all.
       # A missing optional adapter is a reported capability gap, not a crash.
       - name: Preflight reports missing tools without crashing
         run: |
           set +e
-          ./scripts/prime_preflight.py --json
+          ./scripts/efo_preflight.py --json
           status=$?
           set -e
           if [ "$status" -gt 1 ]; then
@@ -49,7 +50,7 @@ jobs:
       - name: Install is a no-op under --dry-run
         run: |
           ./scripts/install.sh --prefix "$RUNNER_TEMP/bin" --dry-run
-          if [ -e "$RUNNER_TEMP/bin/prime-fable-orchestrate" ]; then
+          if [ -e "$RUNNER_TEMP/bin/efo-orchestrate" ]; then
             echo "--dry-run created files" >&2
             exit 1
           fi

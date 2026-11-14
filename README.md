@@ -1,8 +1,27 @@
 # evidence-first-orchestrator
 
-> **Status: initial public release.** Version 0.1.0 was prepared and verified on
-> 2026-08-07. Provider-plan compatibility remains the operator’s responsibility;
-> read [docs/provider-terms-review.md](docs/provider-terms-review.md) before use.
+> **Status: historical v0.1.0. Current provider compatibility is unverified.**
+> This release is for existing users maintaining its adapter contracts and for
+> readers studying bounded execution and evidence checks, not a recommended
+> new orchestration stack. The last recorded release checks are from
+> 2026-08-07. The code defaults to `claude-fable-5` with `claude-opus-5` as its
+> fallback; the release records no exact Claude, Codex or Grok CLI versions.
+> Passing the offline tests does not test those models or live provider calls.
+>
+> **Execution limits and evidence checks are not sandboxing.** They apply to
+> work routed through the adapters. The orchestrator can run shell commands;
+> evidence files and model claims are not proof of correctness. External
+> adapters and vendor CLIs must enforce filesystem and tool restrictions.
+> Read [docs/security.md](docs/security.md) before use.
+>
+> Chris moved to [Pi](https://github.com/earendil-works/pi) with
+> [T3 Code](https://github.com/pingdotgg/t3code), both public MIT projects.
+> These are alternatives to investigate, not a tested replacement for this
+> launcher's evidence contract. No public drop-in migration or implementation
+> of the required external adapters is provided here. Provider-plan
+> compatibility remains your responsibility; the
+> [terms review](docs/provider-terms-review.md) records August 2026 findings,
+> not current legal clearance.
 
 An evidence-first launcher and orchestration contract for bounded,
 cross-vendor work. A supervising agent or human operator can invoke it to start
@@ -11,8 +30,9 @@ task and dispatch a small number of external workers through other vendors'
 official CLIs. The launcher then independently validates the structured result
 against recorded evidence before it may report success.
 
-The point is not "run many agents." The point is that a multi-agent run should
-be **mechanically bounded** and **unable to lie about its own outcome**.
+The launcher checks configured worker limits and looks for contradictions
+between the reported outcome and recorded evidence. It cannot establish that
+an arbitrary model claim is true.
 
 ---
 
@@ -37,22 +57,23 @@ efo-orchestrate              ← this repo: launcher, caps, evidence, validation
         efo_slot_controller.py ← job-wide concurrency + cumulative node caps
 ```
 
-Everything the run does lands in a per-run **job directory** as inspectable
-evidence: the brief, the contract, the exact argv, per-attempt streams, slot
+The launcher records a per-run **job directory** of inspectable evidence.
+The contract asks workers to put their evidence there too. The expected contents
+are the brief, the contract, the exact argv, per-attempt streams, slot
 lifecycle events, per-worker streams and artifacts, metrics, the raw model
 result, the normalized result, and the list of validation errors.
 
 ## Why it exists
 
-Multi-agent orchestration tends to fail in four specific ways. This repo
-targets each one with a mechanism rather than a prompt:
+The launcher targets three failure modes with code checks. The contract
+also asks for independent verification, which remains a prompt instruction:
 
 | Failure mode | Mechanism |
 | --- | --- |
-| Unbounded fan-out burns quota and clobbers files | A separate slot-controller process enforces job-wide concurrency, a **separate writer cap**, and a cumulative node cap. Caps are enforced in the adapter, not requested in a prompt. |
-| Agents claim success they cannot support | The launcher re-derives fan-in counts, checks every cited evidence path exists and is non-empty and inside the job directory, and **deterministically downgrades** a success claim contradicted by its own validation items. |
-| A retry silently repeats side effects | Cross-model fallback runs only after proving from slot state and the tool-use stream that the first attempt started zero workers and used only `Read`/`Glob`/`Grep`. Anything else fails closed. |
-| An implementer grades its own homework | The contract requires a bounded cross-vendor refutation pass and one central validation gate owned by the orchestrator. |
+| Unbounded fan-out burns quota and clobbers files | A separate slot controller enforces concurrency, a writer cap and a cumulative node cap for workers using the adapters. These are not token budgets or a sandbox. |
+| Agents claim success they cannot support | The launcher re-derives fan-in counts, checks cited worker evidence paths and deterministically downgrades a success claim contradicted by its own validation items. It does not independently re-run the claimed checks. |
+| A retry silently repeats side effects | Cross-model fallback requires recorded slot state with zero worker starts and a tool-use stream containing only `Read`/`Glob`/`Grep`. Unknown or malformed evidence blocks replay. This assumes the trace and tools are trustworthy. |
+| An implementer grades its own homework | The contract asks for a bounded cross-vendor refutation pass and one central validation gate. The launcher does not independently enforce who performed them. |
 
 ## Core concepts
 
@@ -70,14 +91,14 @@ concurrency. `--max-writers 0` mechanically prevents writer-lane starts; it is
 not a substitute for filesystem confinement of reader processes.
 
 **Evidence artifacts.** Workers must write streams and final artifacts under
-`$EFO_ORCHESTRATION_JOB_DIR`. The launcher rejects a final result whose
-worker evidence paths are missing, empty, duplicated, or outside the job
-directory — so "I ran a verifier" is checkable.
+`$EFO_ORCHESTRATION_JOB_DIR`. The launcher rejects cited worker evidence paths
+that are missing, empty or outside the job directory, and rejects duplicate stream paths. It does not
+require artifact paths to be unique or establish that the contents are true.
 
-**Safe no-side-effect fallback.** If the primary model reports a quota, credit,
+**Checked fallback.** If the primary model reports a quota, credit,
 overload, or availability error, the launcher may retry once on a fallback
-model — but only after proving the first attempt had no side effects. Under
-`--resume` it never retries across models; it returns `blocked` instead.
+model, but only when recorded slot state and tool use pass its replay checks.
+Under `--resume` it never retries across models; it returns `blocked` instead.
 
 **Deterministic result normalization.** A result that says `completed` while
 any validation item says `failed` is not merely flagged: `final.json` is
@@ -87,6 +108,9 @@ only ever downgrades.
 
 ## Requirements
 
+The examples and default model IDs below belong to the August 2026 release.
+Confirm model access and CLI compatibility separately before any live run.
+
 You bring your own CLIs. This repository ships **no** vendor client and **no**
 credentials.
 
@@ -94,8 +118,8 @@ credentials.
 | --- | --- | --- |
 | Python 3.10+ and Bash | yes | Launcher, slot controller, adapters |
 | Claude Code CLI (`claude`) | yes | The orchestrator session |
-| `codex-leg` adapter | only for Codex workers | External program you supply — see [docs/adapters.md](docs/adapters.md) |
-| `grok-leg` adapter | only for Grok workers | External program you supply — see [docs/adapters.md](docs/adapters.md) |
+| `codex-leg` adapter | only for Codex workers | External program you supply; see [docs/adapters.md](docs/adapters.md) |
+| `grok-leg` adapter | only for Grok workers | External program you supply; see [docs/adapters.md](docs/adapters.md) |
 | Grok CLI (`grok`) | only for Grok workers | Invoked through `grok-leg` |
 
 Every executable is resolved from an explicit environment override, the user
@@ -110,9 +134,9 @@ and no assumption about where a package manager lives.
 
 ### On provider terms
 
-This project drives **official, authenticated vendor CLIs** using an
-entitlement the user has already been granted. It ships no credentials, is not
-a proxy or relay, and does not obtain capacity the user is not entitled to.
+This project is intended for use with **official, authenticated vendor CLIs**.
+It ships no credentials and is not a proxy or relay. It does not verify that a
+chosen executable is official, or that an account permits a particular use.
 
 Automated, headless, or non-interactive invocation may be restricted or
 prohibited depending on the provider and the specific plan. You must verify
@@ -126,8 +150,9 @@ conflict with anything described here, the provider's terms win.
 
 `efo-preflight` will not pass until you set `EFO_PROVIDER_TERMS_ACK=1`. That
 gate records your acknowledgement; it cannot and does not verify compliance.
+The launcher does not enforce this gate itself; run preflight separately.
 
-## Install
+## Install for existing users
 
 ```bash
 git clone https://github.com/ax0s-io/evidence-first-orchestrator.git
@@ -194,7 +219,7 @@ orchestration-metrics.json   meta.json
 Read `meta.json` first: it carries the overall status, per-attempt model and
 usage evidence, the normalization record, and the validation error list.
 
-A worked end-to-end example is in [examples/example-brief.md](examples/example-brief.md).
+An illustrative, not recorded, end-to-end example is in [examples/example-brief.md](examples/example-brief.md).
 
 ## Documentation
 
@@ -220,9 +245,9 @@ A worked end-to-end example is in [examples/example-brief.md](examples/example-b
 ./tests/run-tests.sh
 ```
 
-The suite is deterministic, offline, and hermetic: it uses a fake CLI stub, so
-it never calls a model, opens a socket, or invokes a provider service. It is the
-authoritative gate — run it before proposing any change.
+The suite uses fake CLI stubs and makes no model calls or provider requests.
+Some concurrency assertions depend on timing. Run it before proposing a
+change, but do not treat a pass as proof of live provider compatibility.
 
 ## Attribution and independence
 

@@ -5,6 +5,10 @@ description: Runs a complex task through a bounded multi-vendor orchestration gr
 
 # Bounded multi-vendor orchestration
 
+> Historical v0.1.0 skill from August 2026, not a current routing recommendation.
+> Read [repository status](README.md) first. Current provider integration is
+> unverified, external wrappers are required, and these checks are not sandboxing.
+
 This agent skill definition is suitable when a task genuinely benefits from
 decomposition, external workers, and cross-vendor verification — substantial
 implementation, wide research, or a correctness claim that needs independent
@@ -30,7 +34,7 @@ adapters. Run `efo-preflight` to see what resolves. Full setup in
   evidence inspection. The orchestrator session owns decomposition, worker
   routing, and synthesis. Do not build the same plan twice.
 
-The launcher enforces `references/orchestration-contract.md`, constrains output
+The launcher appends `references/orchestration-contract.md` as instructions, constrains output
 with `references/result-schema.json`, and independently validates structure,
 fan-in, worker evidence, and validation semantics before reporting success.
 

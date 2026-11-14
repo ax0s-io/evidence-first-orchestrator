@@ -1,7 +1,8 @@
 # Provider terms review
 
 **Retrieval date: 2026-08-07.** Reviewed by the maintainers as an engineering
-exercise before the first public release.
+exercise before the first public release. This is an August 2026 record, not
+current plan-level clearance; re-check the linked sources before use.
 
 > **This is not legal advice.** It is a good-faith reading of official provider
 > documents by software engineers, recorded so that readers can check the same
@@ -208,12 +209,13 @@ not an aspiration.
    restricted or prohibited depending on the provider and plan, and that the
    operator must check before running. This document is linked from each.
 
-4. **Consumer-subscription automation is opt-in, not default.** `efo-preflight`
+4. **Preflight acknowledgement.** `efo-preflight`
    fails until the operator acknowledges this review by setting
    `EFO_PROVIDER_TERMS_ACK=1`. There is no way to reach a green preflight
    without passing that acknowledgement, and the check names this file. The gate
    is deliberately trivial to satisfy — its purpose is informed consent, not
-   obstruction, and we do not pretend it enforces compliance.
+   obstruction, and we do not pretend it enforces compliance. The launcher
+   does not enforce this acknowledgement; operators must run preflight.
 
 5. **No rate-limit or quota circumvention machinery.** The project has no
    retry-until-allowed loop, no key rotation, no account rotation, no

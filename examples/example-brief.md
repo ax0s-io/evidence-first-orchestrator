@@ -1,7 +1,8 @@
 # Example: a bounded multi-vendor run
 
-A worked example of what a good brief looks like, what the orchestrator does
-with it, and how to read the evidence afterward.
+An illustrative August 2026 example of a brief, a possible worker graph, and
+how to read the evidence afterward. The sample output is not a recorded run.
+See the [repository status](../README.md) before adapting it.
 
 ## The task
 
@@ -143,7 +144,8 @@ whose job was to disagree.
 
 ## Variations
 
-**Read-only investigation.** Mechanically forbid edits; widen readers:
+**Read-only investigation.** Block writer-lane starts and widen readers.
+Actual read-only access still requires external sandboxing:
 
 ```bash
 efo-orchestrate --cwd /tmp/wt-retry \

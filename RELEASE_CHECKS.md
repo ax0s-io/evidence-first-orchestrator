@@ -1,5 +1,10 @@
 # Release checks — version 0.1.0
 
+> Historical release record from August 2026, not a current certification.
+> The November documentation review does not re-run the private-reference
+> comparison, model review, or provider calls described here. Offline test
+> results do not establish current provider compatibility or plan permission.
+
 **Run date:** 2026-08-07
 **Scope:** complete publishable working tree and all pre-release Git history
 **Result:** passed, subject to the provider-plan limitation documented below

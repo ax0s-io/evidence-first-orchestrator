@@ -1,5 +1,9 @@
 # Architecture
 
+> This describes the August 2026 v0.1.0 implementation, not a current provider
+> integration test. See the [repository status](../README.md). The caps and
+> evidence checks below are not a sandbox.
+
 Three processes, one job directory, and a validation gate that does not trust
 the model it just ran.
 
@@ -32,8 +36,8 @@ fallback state machine, result validation and normalization, and the final
 **`scripts/efo_slot_controller.py` — the cap enforcer.** A separate process
 per worker. Takes a file lock over `.efo-slots/state.json`, waits until the
 worker's lane has room, records `started`, execs the adapter as a process-group
-leader, then records `finished` and releases. Because the cap lives in a lock
-file held by a process outside the model's control, no prompt can raise it.
+leader, then records `finished` and releases. The cap applies to workers admitted through that controller. It does not
+constrain a shell-capable orchestrator that bypasses the adapters.
 
 **`scripts/efo_codex_leg.sh`, `scripts/efo_grok_leg.sh` — the adapters.**
 Thin argument-validating shims. They strip `--lane`, verify the job directory,
@@ -60,7 +64,8 @@ Three orthogonal limits, all enforced in the slot controller:
 | `--max-writers` | simultaneous **writer-lane** workers | 2 | 0–max-workers |
 | `--max-nodes` | **cumulative** worker starts for the run | 12 | max-workers–100 |
 
-`--max-workers` bounds width; `--max-nodes` bounds total spend. A run with
+`--max-workers` bounds concurrent workers; `--max-nodes` bounds worker starts.
+Neither bounds token use, price, or total spend. A run with
 `--max-workers 4 --max-nodes 24` may execute 24 workers, never more than 4 at
 once. `--max-writers 0` makes writer lanes impossible while readers still run.
 
@@ -120,6 +125,7 @@ The orchestrator returns a structured result. The launcher treats it as a
 - Every worker id is unique; every stream path is unique.
 - Completed workers must cite both a stream and an artifact, and each cited
   path must exist, be non-empty, and resolve **inside** the job directory.
+  Only stream paths are checked for uniqueness, not artifact paths.
 - Worker record count must not exceed `--max-nodes`.
 - `validation` must be a non-empty array of well-formed items.
 - A success status requires at least one `passed` validation item.
@@ -127,7 +133,8 @@ The orchestrator returns a structured result. The launcher treats it as a
 ### Cross-checks against independently recorded evidence
 
 - A success claiming workers while the slot controller recorded **zero**
-  started nodes is rejected. You cannot invent workers.
+  started nodes is rejected. This checks counts, not worker identity or the
+  truth of artifact contents.
 - Claiming more completed workers than the metrics recorded is rejected.
 - A `degraded` metrics reduction is a validation error.
 
@@ -164,7 +171,9 @@ availability condition** — quota exhausted, credits exhausted, overloaded, or
 model unavailable — classified from the result event and stderr by narrow
 patterns. An ordinary task failure never retries.
 
-Before retrying, it must **prove the first attempt had no side effects**:
+Before retrying, it checks the recorded evidence for no worker starts or
+potentially mutating tool calls. This is not a proof against dishonest tools or
+unrecorded activity:
 
 1. `.efo-slots/state.json` parses, has the expected shape, records
    `nodes_started == 0`, and holds no holders.

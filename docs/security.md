@@ -43,8 +43,8 @@ do not hold up.
 
 ## What is enforced mechanically
 
-These are properties a prompt cannot override, because a separate process
-enforces them.
+These checks apply when work goes through the provided launcher and adapters.
+They do not prevent an orchestrator with shell access from bypassing them.
 
 **Concurrency and graph size.** `efo_slot_controller.py` is a distinct
 process holding a file-locked state file. It enforces simultaneous workers
@@ -73,7 +73,8 @@ argv, so the task text is not visible in another process's `ps` output.
 already exist.
 
 **Evidence integrity.** Cited worker streams and artifacts must exist, be
-non-empty, be unique per worker, and live **inside** the job directory. A
+non-empty, and live **inside** the job directory. Stream paths must be unique;
+artifact paths are not checked for uniqueness. Contents remain untrusted. A
 result citing `/etc/passwd` or a nonexistent file as evidence is rejected.
 
 **Result integrity.** A success claim contradicted by its own validation items
@@ -129,8 +130,9 @@ its final claim.
    credentials, secrets, or unrelated production code.
 2. **Commit or stash first.** Writers change files. Have a clean diff to
    review against.
-3. **Set `--max-writers 0`** for anything that should be read-only. Do not rely
-   on the brief saying "don't edit."
+3. **Set `--max-writers 0`** to block writer-lane starts, and use external
+   filesystem confinement for read-only work. Neither the lane cap nor a brief
+   saying "don't edit" prevents arbitrary writes.
 4. **Review the diff.** Passing tests are evidence, not proof.
 5. **Read `meta.json`** — specifically `status`, `final_validation_errors`, the
    normalization record, and `metrics_summary` — before believing a summary.

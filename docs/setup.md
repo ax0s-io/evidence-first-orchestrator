@@ -1,5 +1,9 @@
 # Setup
 
+> Historical v0.1.0 setup, recorded in August 2026. See the
+> [repository status](../README.md) before installing. Current model access and
+> provider compatibility are not established by the offline tests.
+
 ## 1. Prerequisites
 
 | Requirement | Notes |
@@ -95,8 +99,8 @@ For this release each command prints `evidence-first-orchestrator 0.1.0`.
 
 ## 4. Configuration
 
-Everything is an environment variable. Nothing is written to a config file, and
-there are no hardcoded absolute paths.
+Tool paths and model defaults can be set with environment variables; run
+options also have CLI flags. The launcher does not write a user config file.
 
 ### Tool discovery
 
@@ -111,7 +115,7 @@ there are no hardcoded absolute paths.
 when unset — the directory `install.sh` links into) is searched first, then
 `PATH`. See [adapters.md](adapters.md) for the full rule.
 
-An override that is set but does not resolve to a usable executable is a hard
+A non-empty override that does not resolve to a usable executable is a hard
 error — it never silently falls back. "Usable" means: resolves through `~` and
 symlinks to a canonical absolute path, is a regular file, is executable, is not
 world-writable, and does not sit in a world-writable directory unless that
@@ -119,6 +123,9 @@ directory has the sticky bit set (so a shared `/tmp` is not disqualified, but
 anyone-can-replace-this directories are).
 
 ### Run behavior
+
+The model IDs below are defaults in the August 2026 code, not a current routing
+recommendation. Their availability has not been re-tested.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |

@@ -1,5 +1,9 @@
 # Security policy
 
+> This policy accompanied the August 2026 release. See the
+> [historical project status](README.md); current response capacity has not
+> been verified. Keep vulnerability reports private using the contacts below.
+
 ## Reporting a vulnerability
 
 Report suspected exploitable vulnerabilities privately by email to

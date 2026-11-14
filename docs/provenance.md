@@ -1,5 +1,10 @@
 # Provenance audit
 
+> Historical, self-reported textual-overlap check from August 2026. It was not
+> repeated for the November documentation review: the private reference files
+> are not supplied here. Exact-line and shingle matching cannot establish
+> originality or licensing, or detect arbitrary renamed or rewritten logic.
+
 **Audit date: 2026-08-07.** Performed against the working tree immediately
 before the 0.1.0 release commit.
 
@@ -52,8 +57,8 @@ Three measures per (repository file, reference file) pair:
 1. **Shared normalized lines** — how many of this file's normalized lines appear
    anywhere in the reference.
 2. **Jaccard similarity over 5-line shingles** — the structural measure. Copied
-   logic survives renaming; isolated identical lines do not produce shingle
-   overlap, but copied *sequences* do.
+   sequences can produce overlap; isolated identical lines do not. Renaming
+   identifiers or rewriting logic can defeat this exact-text measure.
 3. **Longest run of consecutive matching normalized lines** — the upper bound on
    a lifted block. Note the exact semantics: it is the longest run of
    consecutive lines *in this repository* each of which appears *somewhere* in

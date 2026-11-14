@@ -1,5 +1,9 @@
 # External adapter contracts
 
+> Historical v0.1.0 interfaces, recorded in August 2026. The external wrappers
+> are not bundled or tested against current provider CLIs here. See the
+> [repository status](../README.md). A lane check is not sandboxing.
+
 This is an **interface specification** for the external programs the project
 calls. The repository does not bundle, vendor, or redistribute another
 project's wrapper implementation. You supply and maintain `codex-leg` and
@@ -16,8 +20,8 @@ raw vendor binary or substitutes an API-key code path.
 
 Resolution rule, applied identically everywhere:
 
-1. If the override variable is set, it must name an existing **executable
-   file**. A set-but-unusable override is a hard error — it is never ignored,
+1. If the override variable is non-empty, it must name an existing **executable
+   file**. A non-empty but unusable override is a hard error — it is never ignored,
    because silently falling back to `PATH` after an explicit override is how you
    end up running the wrong binary.
 2. Otherwise the name is looked up in the user bin directory
@@ -44,10 +48,9 @@ good-faith engineering review, not legal advice, and provider terms win.
 
 ## Why there is a wrapper layer at all
 
-The vendor CLIs are general-purpose. Handing one directly to an autonomous
-orchestrator gives up the three properties this project exists to provide:
-a stall watchdog, a bounded tool/sandbox surface, and a durable evidence
-stream. The `*-leg` wrappers are where those live.
+The vendor CLIs are general-purpose. The external `*-leg` wrappers must supply worker watchdogs, actual sandbox
+and tool restrictions, and durable evidence streams. This repository specifies
+that interface; it does not supply those implementations.
 
 This repository adds a **slot-controlled layer on top**:
 
@@ -62,8 +65,8 @@ orchestrator
 `efo-codex-leg` / `efo-grok-leg` validate the lane, verify the job
 directory, reject argument shapes that would defeat the sandbox, and then hand
 off to the slot controller, which blocks until a slot is available and records
-`queued` / `started` / `finished` events. The cap is therefore enforced by a
-process the orchestrator cannot talk its way past.
+`queued` / `started` / `finished` events. The cap is enforced for calls through this layer. It does not stop an
+orchestrator with shell access from bypassing the layer.
 
 **Bare `codex-leg` / `grok-leg` must never be invoked directly by the
 orchestrator** — doing so bypasses the slot controller entirely. The contract
@@ -111,8 +114,8 @@ forwards everything else verbatim, in order:
 - `--lane reader|writer` exactly once, space-separated (`--lane=writer` is
   rejected so the parse cannot be ambiguous).
 - `EFO_ORCHESTRATION_JOB_DIR` set and an existing directory.
-- Any sandbox mode other than `read-only` requires `--lane writer`. A reader
-  cannot obtain write access by argument shape.
+- Any sandbox mode other than `read-only` requires `--lane writer`. This rejects recognized writable sandbox flags; it does not enforce a
+  filesystem boundary or validate every possible vendor configuration.
 
 ## Contract: `grok-leg`
 

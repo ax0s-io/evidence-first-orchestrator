@@ -27,8 +27,9 @@ An evidence-first launcher and orchestration contract for bounded,
 cross-vendor work. A supervising agent or human operator can invoke it to start
 one Claude Code session as the orchestrator. That session may decompose a hard
 task and dispatch a small number of external workers through other vendors'
-official CLIs. The launcher then independently validates the structured result
-against recorded evidence before it may report success.
+official CLIs. The launcher then checks result structure, worker evidence
+paths, and consistency of reported fields before it may report success.
+Validation-item evidence strings are not opened or re-run.
 
 The launcher checks configured worker limits and looks for contradictions
 between the reported outcome and recorded evidence. It cannot establish that

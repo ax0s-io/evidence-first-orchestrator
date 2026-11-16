@@ -1,6 +1,6 @@
 ---
 name: evidence-first-orchestrator
-description: Runs a complex task through a bounded multi-vendor orchestration graph using authenticated provider CLIs. A top-level Claude Code session decomposes the task and dispatches Codex and Grok workers through slot-controlled adapters with reader/writer lanes and hard concurrency caps; the launcher independently validates the result against recorded evidence. Use for substantial multi-agent coding, research, implementation, or verification. Keep simple tasks inline.
+description: Runs a complex task through a bounded multi-vendor orchestration graph using authenticated provider CLIs. A top-level Claude Code session decomposes the task and dispatches Codex and Grok workers through slot-controlled adapters with reader/writer lanes and hard concurrency caps; the launcher checks result structure, worker evidence paths, and consistency of reported fields, without opening validation-item evidence strings or re-running commands. Use for substantial multi-agent coding, research, implementation, or verification. Keep simple tasks inline.
 ---
 
 # Bounded multi-vendor orchestration
@@ -35,8 +35,9 @@ adapters. Run `efo-preflight` to see what resolves. Full setup in
   routing, and synthesis. Do not build the same plan twice.
 
 The launcher appends `references/orchestration-contract.md` as instructions, constrains output
-with `references/result-schema.json`, and independently validates structure,
-fan-in, worker evidence, and validation semantics before reporting success.
+with `references/result-schema.json`, and checks structure, fan-in, worker
+evidence paths, and consistency of reported validation fields before reporting
+success. It does not open validation-item evidence strings or re-run commands.
 
 ## Start a run
 

@@ -75,18 +75,22 @@ already exist.
 **Evidence integrity.** Cited worker streams and artifacts must exist, be
 non-empty, and live **inside** the job directory. Stream paths must be unique;
 artifact paths are not checked for uniqueness. Contents remain untrusted. A
-result citing `/etc/passwd` or a nonexistent file as evidence is rejected.
+result citing `/etc/passwd` or a nonexistent file as worker evidence is rejected.
+Validation-item `evidence` fields need only be nonempty strings. The launcher
+does not open those strings as files or re-run the validation commands.
 
 **Result integrity.** A success claim contradicted by its own validation items
 is deterministically downgraded, not merely annotated. See
 [docs/architecture.md](architecture.md#result-validation-and-normalization).
 
-**Fallback only after proof of no side effects.** Cross-model retry requires
-proof from the slot state *and* the full tool-use stream that the first attempt
-started zero workers and used only `Read`/`Glob`/`Grep`. `Bash`, `Edit`,
-`Write`, `Agent`, `Workflow`, an unknown tool name, or malformed/unreadable
-evidence all block the retry. Under `--resume`, cross-model retry is disabled
-outright.
+**Fallback after recorded-state and trace checks.** Cross-model retry is
+permitted when the recorded slot state and events show no started workers or
+remaining holders, and the parsed trace shows no potentially mutating tools.
+Only `Read`/`Glob`/`Grep` are allowed. `Bash`, `Edit`, `Write`, `Agent`,
+`Workflow`, an unknown tool name, or malformed/unreadable evidence block the
+retry. Empty event and trace files can pass these checks. Trace completeness
+and truthful tool behavior are assumptions, not guarantees of these checks.
+Under `--resume`, cross-model retry is disabled outright.
 
 **Process-group cleanup.** Children are started in their own session and killed
 by process group on stall, timeout, or signal, with escalation to `SIGKILL`.
